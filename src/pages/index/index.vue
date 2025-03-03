@@ -677,4 +677,101 @@ const isInSelectedColumn = (room) => {
 .room-cell.column-selected {
   z-index: 2;
 }
+
+/* 单个房间选中时房间号加粗 */
+.room-cell.room-selected .room-no {
+  font-weight: bold;
+}
+
+/* 整行选中时房间号加粗 */
+.room-cell.floor-row-selected .room-no {
+  font-weight: bold;
+}
+
+/* 整列选中时房间号加粗 */
+.room-cell.column-selected .room-no {
+  font-weight: bold;
+}
+
+/* 表头列选中时加粗 */
+/* 
+.room-cell-header.column-selected {
+  font-weight: bold;
+} 
+*/
+
+/* 楼层号选中时加粗 */
+/* 
+.floor-no.floor-selected {
+  font-weight: bold;
+} 
+  */
+
+/* 确保占位符不加粗 */
+.room-cell.placeholder .room-no {
+  font-weight: normal !important;
+}
+
+/* 默认字体颜色 */
+.room-row,
+.floor-no,
+.room-cell {
+  color: #999999;
+}
+
+/* 单个房间选中时的字体样式 */
+.room-cell.room-selected {
+  color: #333333;
+}
+
+.room-cell.room-selected .room-no {
+  font-weight: bold;
+}
+
+.room-cell.room-selected .room-area {
+  color: #333333;
+}
+
+/* 整行选中时的字体样式 */
+.floor-no.floor-selected {
+  color: #333333;
+}
+
+.room-cell.floor-row-selected {
+  color: #333333;
+}
+
+.room-cell.floor-row-selected .room-no {
+  font-weight: bold;
+}
+
+.room-cell.floor-row-selected .room-area {
+  color: #333333;
+}
+
+/* 整列选中时的字体样式 */
+.room-cell-header.column-selected {
+  color: #333333;
+}
+
+.room-cell.column-selected {
+  color: #333333;
+}
+
+.room-cell.column-selected .room-no {
+  font-weight: bold;
+}
+
+.room-cell.column-selected .room-area {
+  color: #333333;
+}
+
+/* 确保占位符样式不变 */
+.room-cell.placeholder {
+  color: #d9d9d9 !important;
+}
+
+.room-cell.placeholder .room-no {
+  font-weight: normal !important;
+}
 </style>
