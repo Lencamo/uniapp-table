@@ -422,20 +422,37 @@ const handleColumnClick = (unitNo, roomIndex) => {
   selectedColumn.value = `${unitNo}-${roomIndex}`; // 设置新的选中状态
 };
 
-// 判断房间是否在选中的列
+// 修改判断房间是否在选中的列的方法
 const isInSelectedColumn = (room) => {
   if (!selectedColumn.value) return false;
   const [selectedUnitNo, selectedRoomIndex] = selectedColumn.value
     .split("-")
     .map(Number);
 
+  // 如果是占位符
   if (room.isPlaceholder) {
-    // 对于占位符，从id中获取单元和房间索引信息
     const [_, unitNo, roomNo] = room.id.split("-").map(Number);
     return unitNo === selectedUnitNo && roomNo === selectedRoomIndex;
   }
 
-  // 对于正常房间，判断单元号和房间号是否匹配
+  // 如果是合并的主房间，检查是否包含选中的列
+  if (room.mergeInfo) {
+    // 检查主房间是否在选中列
+    const isMainRoomInColumn =
+      room.unitNo === selectedUnitNo &&
+      parseInt(room.roomNo.slice(-2)) === selectedRoomIndex;
+
+    // 检查被合并的房间是否在选中列
+    const [_, mergedUnitNo, mergedRoomIndex] = room.mergeInfo.mergedWithId
+      .split("-")
+      .map(Number);
+    const isMergedRoomInColumn =
+      mergedUnitNo === selectedUnitNo && mergedRoomIndex === selectedRoomIndex;
+
+    return isMainRoomInColumn || isMergedRoomInColumn;
+  }
+
+  // 对于普通房间，判断单元号和房间号是否匹配
   return (
     room.unitNo === selectedUnitNo &&
     parseInt(room.roomNo.slice(-2)) === selectedRoomIndex
