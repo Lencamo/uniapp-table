@@ -1,5 +1,17 @@
 <template>
   <view class="building-table">
+    <!-- 功能按钮区域 -->
+    <view class="function-area">
+      <button
+        class="edit-btn"
+        :disabled="!canEdit"
+        :class="{ 'edit-btn-active': canEdit }"
+        @click="handleEdit"
+      >
+        编辑
+      </button>
+    </view>
+
     <!-- 垂直滚动容器 -->
     <scroll-view class="vertical-scroll" scroll-y>
       <view class="table-wrapper">
@@ -111,44 +123,24 @@
       </view>
     </scroll-view>
   </view>
+
+  <!-- 使用抽离的编辑弹窗组件 -->
+  <EditModal
+    :show="showEditModal"
+    :title="getEditTitle()"
+    :selection-type="getSelectionType()"
+    :details="getSelectionDetails()"
+    @close="closeModal"
+  />
 </template>
 
 <script setup>
 import { ref, reactive, computed } from "vue";
+import EditModal from "./EditModal.vue";
+import { generateBuildingData, mockUnits } from "./buildingData";
 
 // 单元格宽度
 const cellWidth = 120;
-
-// 生成楼盘数据的方法
-const generateBuildingData = (units) => {
-  const maxFloor = Math.max(...units.map((u) => u.totalFloors));
-
-  return {
-    buildingName: "某某测试楼栋",
-    maxFloor,
-    floorRange: {
-      high: { start: Math.floor((maxFloor * 2) / 3) + 1, end: maxFloor },
-      middle: {
-        start: Math.floor((maxFloor * 1) / 3) + 1,
-        end: Math.floor((maxFloor * 2) / 3),
-      },
-      low: { start: 1, end: Math.floor((maxFloor * 1) / 3) },
-    },
-    units: units.map((unit) => ({
-      ...unit, // 保留原始配置
-      roomCount: unit.roomsPerElevator, // 每个单元的房间数就是每梯的户数
-      rooms: Array.from({ length: unit.roomsPerElevator }, (_, i) => i + 1), // 生成房间号列表
-    })),
-  };
-};
-
-// 模拟数据
-const mockUnits = [
-  { unitNo: 1, elevators: 2, roomsPerElevator: 2, totalFloors: 13 }, // 1单元 2梯2户 8层
-  { unitNo: 2, elevators: 2, roomsPerElevator: 3, totalFloors: 10 }, // 2单元 2梯2户 6层
-  { unitNo: 3, elevators: 2, roomsPerElevator: 2, totalFloors: 13 }, // 3单元 2梯2户 8层
-  { unitNo: 4, elevators: 2, roomsPerElevator: 3, totalFloors: 10 }, // 4单元 2梯2户 6层
-];
 
 // 楼盘配置
 const buildingConfig = reactive(generateBuildingData(mockUnits));
@@ -308,6 +300,55 @@ const isInSelectedColumn = (room) => {
     room.unitNo === selectedUnitNo &&
     parseInt(room.roomNo.slice(-2)) === selectedRoomIndex
   );
+};
+
+// 控制编辑按钮状态和弹窗显示
+const showEditModal = ref(false);
+
+// 判断是否可以编辑（有选中内容时可编辑）
+const canEdit = computed(() => {
+  return selectedRoom.value || selectedFloor.value || selectedColumn.value;
+});
+
+// 处理编辑按钮点击
+const handleEdit = () => {
+  showEditModal.value = true;
+};
+
+// 关闭弹窗
+const closeModal = () => {
+  showEditModal.value = false;
+};
+
+// 获取编辑标题
+const getEditTitle = () => {
+  if (selectedRoom.value) return "编辑房间";
+  if (selectedFloor.value) return "编辑整行";
+  if (selectedColumn.value) return "编辑整列";
+  return "编辑";
+};
+
+// 获取选中类型
+const getSelectionType = () => {
+  if (selectedRoom.value) return "单个房间";
+  if (selectedFloor.value) return "整行";
+  if (selectedColumn.value) return "整列";
+  return "";
+};
+
+// 获取选中内容详情
+const getSelectionDetails = () => {
+  if (selectedRoom.value) {
+    return `房间号：${selectedRoom.value.roomNo}\n面积：${selectedRoom.value.area}㎡\n单元：${selectedRoom.value.unitNo}单元`;
+  }
+  if (selectedFloor.value) {
+    return `楼层：${selectedFloor.value}F\n该层所有房间`;
+  }
+  if (selectedColumn.value) {
+    const [unitNo, roomIndex] = selectedColumn.value.split("-");
+    return `单元：${unitNo}单元\n房间号：${roomIndex}室\n该列所有房间`;
+  }
+  return "";
 };
 </script>
 
@@ -773,5 +814,34 @@ const isInSelectedColumn = (room) => {
 
 .room-cell.placeholder .room-no {
   font-weight: normal !important;
+}
+
+/* 功能区域样式 */
+.function-area {
+  padding: 20rpx;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+
+.edit-btn {
+  width: 160rpx;
+  height: 60rpx;
+  line-height: 60rpx;
+  font-size: 28rpx;
+  color: #999;
+  background: #f5f5f5;
+  border: 1px solid #eee;
+  border-radius: 4rpx;
+}
+
+.edit-btn-active {
+  color: #333;
+  background: #fff;
+  border-color: #fde247;
+}
+
+.edit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
