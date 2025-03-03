@@ -8,7 +8,10 @@
           <view class="table-grid">
             <!-- 左侧楼层列 -->
             <view class="floor-column">
-              <view class="floor-no-header"></view>
+              <view class="floor-no-header">
+                <view class="header-text unit-text">单元</view>
+                <view class="header-text floor-text">楼层</view>
+              </view>
               <view
                 class="floor-no"
                 v-for="floor in floors"
@@ -218,38 +221,101 @@ const handleContentScroll = (e) => {
   display: grid;
   grid-template-columns: 80rpx 1fr;
   min-width: fit-content;
-  border: 1px solid #eee;
+  border-top: 1px solid #eee;
+  border-left: 1px solid #eee;
 }
 
-/* 固定列样式调整 */
+/* 移除固定列样式，改为普通列样式 */
 .floor-column {
-  position: sticky;
-  left: 0;
-  z-index: 2;
   background: #fff;
+  /* 移除 position: sticky 和 z-index */
 }
 
-/* 固定表头样式调整 */
+/* 调整表头样式 */
 .header-content {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #fff;
+  display: flex;
+  flex-direction: column;
 }
 
+/* 统一表头高度，只给前两行设置灰色背景 */
+.building-row,
+.unit-row {
+  height: 60rpx;
+  min-height: 60rpx;
+  box-sizing: border-box;
+  background: #f5f5f5;
+}
+
+/* 房间号行使用白色背景 */
+.room-row {
+  height: 60rpx;
+  min-height: 60rpx;
+  box-sizing: border-box;
+  background: #fff;
+  display: flex;
+}
+
+/* 左侧楼层列表头 */
 .floor-no-header {
-  height: 180rpx; /* 等于表头三行的高度 */
+  height: 180rpx; /* 3 * 60rpx */
+  min-height: 180rpx;
   background: #f5f5f5;
   border-bottom: 1px solid #eee;
+  border-right: 1px solid #eee;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* 对角线文字布局 */
+.unit-text {
+  position: absolute;
+  right: 0rpx;
+  top: 0rpx;
+}
+
+.floor-text {
+  position: absolute;
+  left: 0rpx;
+  bottom: 0rpx;
+}
+
+/* 对角线 */
+.floor-no-header::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 1px),
+    #eee calc(50% - 1px),
+    #eee calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+
+.header-text {
+  height: 60rpx;
+  line-height: 60rpx;
+  color: #333;
+  font-weight: normal;
 }
 
 .floor-no {
   height: 150rpx;
+  min-height: 150rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: #fff;
   border-bottom: 1px solid #eee;
+  border-right: 1px solid #eee;
+  box-sizing: border-box;
 }
 
 .building-row {
@@ -270,8 +336,10 @@ const handleContentScroll = (e) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
+  font-weight: normal;
   border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  box-sizing: border-box;
 }
 
 .room-row {
@@ -288,6 +356,8 @@ const handleContentScroll = (e) => {
   justify-content: center;
   font-size: 28rpx;
   border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  box-sizing: border-box;
 }
 
 /* 房间内容部分 */
@@ -297,40 +367,32 @@ const handleContentScroll = (e) => {
 
 .floor-row {
   display: flex;
-  border-bottom: 1px solid #eee;
+  height: 150rpx;
+  min-height: 150rpx;
+  box-sizing: border-box;
 }
 
+/* 房间单元格基础样式 */
 .room-cell {
   width: 150rpx;
   height: 150rpx;
+  min-height: 150rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  box-sizing: border-box;
+  background: #fff; /* 统一设置白色背景 */
 }
 
 .room-no {
-  font-size: 28rpx;
-  font-weight: 500;
+  font-weight: normal;
 }
 
-.room-area {
-  font-size: 24rpx;
-  color: #999;
-  margin-top: 8rpx;
-}
-
-/* 确保最后一列没有右边框 */
-.unit-cell:last-child,
-.room-cell-header:last-child,
-.room-cell:last-child {
-  border-right: none;
-}
-
-/* 占位符样式优化 */
+/* 占位符样式，只改变文字颜色 */
 .room-cell.placeholder {
-  background: #fafafa;
   color: #d9d9d9;
 }
 
@@ -348,5 +410,41 @@ const handleContentScroll = (e) => {
 .floor-row[data-floor-type="low"] .floor-no {
   background: #f5f5f5;
   border-right: 1px solid #eee;
+}
+
+.floor-row:last-child .floor-no,
+.floor-row:last-child .room-cell {
+  border-bottom: none;
+}
+
+/* 统一字体样式 */
+.header-text,
+.room-cell-header,
+.floor-no,
+.unit-cell,
+.room-no,
+.room-cell {
+  font-size: 28rpx;
+  font-weight: normal;
+}
+
+/* 只保留楼栋号加粗 */
+.building-row {
+  font-weight: bold;
+  text-align: center;
+}
+
+/* 房间面积样式 */
+.room-area {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+/* 确保最后一列没有右边框 */
+.unit-cell:last-child,
+.room-cell-header:last-child,
+.room-cell:last-child {
+  border-right: none;
 }
 </style>
