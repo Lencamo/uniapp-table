@@ -21,6 +21,11 @@
           </view>
         </view>
       </view>
+      <!-- 添加底部按钮区域 -->
+      <view v-if="showConfirm" class="modal-footer">
+        <button class="confirm-btn" @click="onConfirm">确认</button>
+        <button class="cancel-btn" @click="onClose">取消</button>
+      </view>
     </view>
   </view>
 </template>
@@ -31,12 +36,17 @@ defineProps({
   title: String,
   selectionType: String,
   details: String,
+  showConfirm: Boolean, // 新增属性控制是否显示确认按钮
 });
 
-const emit = defineEmits(["close"]);
+const emit = defineEmits(["close", "confirm"]);
 
 const onClose = () => {
   emit("close");
+};
+
+const onConfirm = () => {
+  emit("confirm");
 };
 </script>
 
@@ -115,5 +125,43 @@ const onClose = () => {
   font-size: 28rpx;
   color: #333;
   white-space: pre-line;
+}
+
+.modal-footer {
+  padding: 20rpx 30rpx;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 20rpx;
+}
+
+.confirm-btn,
+.cancel-btn {
+  width: 160rpx;
+  height: 60rpx;
+  line-height: 60rpx;
+  font-size: 28rpx;
+  border-radius: 4rpx;
+  text-align: center;
+}
+
+.confirm-btn {
+  color: #333;
+  background: #fff;
+  border: 1px solid #fde247;
+}
+
+.cancel-btn {
+  color: #999;
+  background: #f5f5f5;
+  border: 1px solid #eee;
+}
+
+.confirm-btn:hover {
+  background: #fffcf0;
+}
+
+.cancel-btn:hover {
+  background: #f0f0f0;
 }
 </style>
