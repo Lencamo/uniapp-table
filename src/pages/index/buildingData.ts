@@ -19,6 +19,7 @@ export const generateBuildingData = (units: any[]) => {
       rooms: Array.from({ length: unit.roomsPerElevator }, (_, i) => i + 1), // 生成房间号列表
     })),
     mergedRooms: {}, // 存储合并房间的信息
+    elevatedRooms: {}, // 存储跃层房间的信息
   };
 };
 

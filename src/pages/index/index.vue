@@ -124,13 +124,14 @@
                       :key="room.id"
                       class="room-cell"
                       :class="{
-                        'grid-col-span-2': room.isMerged,
+                        'grid-col-span-2': room.mergeInfo,
+                        'grid-row-span-2': room.elevateInfo,
                         'room-selected': isRoomSelected(room),
                         'floor-row-selected': isInSelectedFloor(room),
                         'column-selected': isInSelectedColumn(room),
                       }"
                       :style="{
-                        gridRow: `${buildingConfig.maxFloor - floor + 1}`,
+                        gridRow: getRoomGridRow(room, floor),
                         gridColumn: getRoomGridPosition(room),
                       }"
                       @click="handleRoomClick(room)"
@@ -196,13 +197,19 @@ const getFloorRooms = (floor) => {
       for (let i = 0; i < unit.roomCount; i++) {
         const roomId = `${floor}-${unit.unitNo}-${i + 1}`;
         const mergeInfo = buildingConfig.mergedRooms[roomId];
+        const elevateInfo = buildingConfig.elevatedRooms[roomId];
 
-        // 检查是否是被合并的房间
+        // 检查是否是被水平合并的房间
         const isMergedRoom = Object.values(buildingConfig.mergedRooms).some(
           (info) => info.mergedWithId === roomId
         );
 
-        if (!isMergedRoom) {
+        // 检查是否是被跃层合并的房间
+        const isElevatedRoom = Object.values(buildingConfig.elevatedRooms).some(
+          (info) => info.mergedWithId === roomId
+        );
+
+        if (!isMergedRoom && !isElevatedRoom) {
           rooms.push({
             id: roomId,
             roomNo: generateRoomNo(floor, i + 1),
@@ -210,6 +217,8 @@ const getFloorRooms = (floor) => {
             unitNo: unit.unitNo,
             isMerged: !!mergeInfo,
             mergeInfo,
+            isElevated: !!elevateInfo,
+            elevateInfo,
           });
         }
       }
@@ -369,12 +378,10 @@ const totalRoomCount = computed(() => {
   return buildingConfig.units.reduce((sum, unit) => sum + unit.roomCount, 0);
 });
 
-// 获取房间在网格中的位置
+// 修改获取房间在网格中的位置的方法
 const getRoomGridPosition = (room) => {
-  if (room.isMerged) {
-    return "span 2";
-  }
-  return "auto";
+  if (!room.mergeInfo) return "auto";
+  return "span 2"; // 只处理水平合并
 };
 
 // 获取房间显示信息
@@ -727,7 +734,7 @@ const handleElevateClick = () => {
   showEditModal.value = true;
 };
 
-// 添加跃层确认处理方法
+// 修改 handleElevateConfirm 方法
 const handleElevateConfirm = () => {
   if (!lastSelectedFloor.value || !selectedFloor.value) return;
 
@@ -737,8 +744,25 @@ const handleElevateConfirm = () => {
     selectedFloor.value,
   ].sort((a, b) => a - b);
 
-  // TODO: 在这里添加跃层的具体逻辑
-  console.log(`将 ${lowerFloor}F 和 ${upperFloor}F 进行跃层操作`);
+  // 获取两层的房间
+  const lowerRooms = getFloorRooms(lowerFloor).filter((r) => !r.isPlaceholder);
+  const upperRooms = getFloorRooms(upperFloor).filter((r) => !r.isPlaceholder);
+
+  // 执行跃层合并
+  upperRooms.forEach((upperRoom, index) => {
+    const lowerRoom = lowerRooms[index];
+    if (lowerRoom) {
+      // 创建跃层合并信息
+      const elevateInfo = {
+        mainRoomId: upperRoom.id,
+        mergedWithId: lowerRoom.id,
+        totalArea: upperRoom.area + lowerRoom.area,
+      };
+
+      // 更新合并状态
+      buildingConfig.elevatedRooms[upperRoom.id] = elevateInfo;
+    }
+  });
 
   // 清除选中状态
   clearAllSelections();
@@ -780,6 +804,17 @@ const getEditTitle = () => {
   if (selectedFloor.value) return "编辑整行";
   if (selectedColumn.value) return "编辑整列";
   return "编辑";
+};
+
+// 修改 getRoomGridRow 方法处理垂直合并
+const getRoomGridRow = (room, floor) => {
+  const baseRow = buildingConfig.maxFloor - floor + 1;
+
+  if (room.elevateInfo) {
+    return `${baseRow} / span 2`;
+  }
+
+  return baseRow;
 };
 </script>
 
@@ -1344,5 +1379,22 @@ const getEditTitle = () => {
   border: 2px solid #fde247;
   pointer-events: none;
   z-index: 1;
+}
+
+/* 垂直合并样式 */
+.room-cell.grid-row-span-2 {
+  height: 300rpx;
+  border-bottom: 1px solid #eee;
+}
+
+/* 调整垂直合并时的内容布局 */
+.room-cell.grid-row-span-2 .room-no,
+.room-cell.grid-row-span-2 .room-area {
+  display: block;
+  text-align: center;
+}
+
+.room-cell.grid-row-span-2 .room-area {
+  margin-top: 20rpx;
 }
 </style>
