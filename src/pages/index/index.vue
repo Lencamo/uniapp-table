@@ -17,6 +17,8 @@
                 v-for="floor in floors"
                 :key="floor"
                 :data-floor-type="getFloorType(floor)"
+                :class="{ 'floor-selected': selectedFloor === floor }"
+                @click="handleFloorClick(floor)"
               >
                 {{ floor }}F
               </view>
@@ -54,6 +56,11 @@
                       class="room-cell-header"
                       v-for="n in unit.roomCount"
                       :key="n"
+                      :class="{
+                        'column-selected':
+                          selectedColumn === `${unit.unitNo}-${n}`,
+                      }"
+                      @click="handleColumnClick(unit.unitNo, n)"
                     >
                       {{ n }}室
                     </view>
@@ -80,7 +87,9 @@
                         placeholder: room.isPlaceholder,
                         'grid-col-span-2': room.isMerged, // 水平合并示例
                         'grid-row-span-2': room.isVerticalMerged, // 垂直合并示例
-                        highlight: room.isHighlighted, // 高亮示例
+                        'room-selected': isRoomSelected(room),
+                        'floor-row-selected': isInSelectedFloor(room),
+                        'column-selected': isInSelectedColumn(room),
                       }"
                       :style="{
                         gridRow: `${buildingConfig.maxFloor - floor + 1}`,
@@ -199,10 +208,29 @@ const getFloorType = (floor) => {
   return "";
 };
 
+// 添加状态管理
+const selectedRoom = ref(null);
+const selectedFloor = ref(null);
+const selectedColumn = ref(null);
+
+// 清除所有选中状态
+const clearAllSelections = () => {
+  selectedRoom.value = null;
+  selectedFloor.value = null;
+  selectedColumn.value = null;
+};
+
 // 处理房间点击
 const handleRoomClick = (room) => {
-  // 这里可以实现选中、合并等逻辑
-  console.log("点击房间:", room);
+  if (room.isPlaceholder) return; // 占位符不可点击
+
+  clearAllSelections(); // 清除之前的所有选中状态
+  selectedRoom.value = room; // 设置新的选中状态
+};
+
+// 判断房间是否被选中
+const isRoomSelected = (room) => {
+  return selectedRoom.value?.id === room.id;
 };
 
 // 处理内容区域滚动，同步表头滚动
@@ -235,6 +263,51 @@ const getRoomGridPosition = (room) => {
   position += roomIndex;
 
   return position;
+};
+
+// 处理楼层点击
+const handleFloorClick = (floor) => {
+  clearAllSelections(); // 清除之前的所有选中状态
+  selectedFloor.value = floor; // 设置新的选中状态
+};
+
+// 判断房间是否在选中的楼层
+const isInSelectedFloor = (room) => {
+  if (!selectedFloor.value) return false;
+  if (room.isPlaceholder) {
+    // 对于占位符，从id中获取楼层信息
+    const floorFromId = parseInt(room.id.split("-")[0]);
+    return floorFromId === selectedFloor.value;
+  }
+  // 对于正常房间，从房间号中提取完整的楼层号
+  const floorFromRoomNo = parseInt(room.roomNo.slice(0, -2));
+  return floorFromRoomNo === selectedFloor.value;
+};
+
+// 处理列表头点击
+const handleColumnClick = (unitNo, roomIndex) => {
+  clearAllSelections(); // 清除之前的所有选中状态
+  selectedColumn.value = `${unitNo}-${roomIndex}`; // 设置新的选中状态
+};
+
+// 判断房间是否在选中的列
+const isInSelectedColumn = (room) => {
+  if (!selectedColumn.value) return false;
+  const [selectedUnitNo, selectedRoomIndex] = selectedColumn.value
+    .split("-")
+    .map(Number);
+
+  if (room.isPlaceholder) {
+    // 对于占位符，从id中获取单元和房间索引信息
+    const [_, unitNo, roomNo] = room.id.split("-").map(Number);
+    return unitNo === selectedUnitNo && roomNo === selectedRoomIndex;
+  }
+
+  // 对于正常房间，判断单元号和房间号是否匹配
+  return (
+    room.unitNo === selectedUnitNo &&
+    parseInt(room.roomNo.slice(-2)) === selectedRoomIndex
+  );
 };
 </script>
 
@@ -488,5 +561,120 @@ const getRoomGridPosition = (room) => {
 /* 高亮样式 */
 .highlight {
   background: #e6f7ff;
+}
+
+/* 单个房间选中的样式 */
+.room-cell.room-selected {
+  position: relative;
+  z-index: 2; /* 确保单个选中的房间在最上层 */
+  background: #fffcf0;
+}
+
+.room-cell.room-selected::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
+  left: -1px;
+  border: 2px solid #fde247;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 整行选中的样式 */
+.floor-no.floor-selected,
+.room-cell.floor-row-selected {
+  position: relative;
+  z-index: 1;
+  background: #fffcf0;
+}
+
+.floor-no.floor-selected::before,
+.room-cell.floor-row-selected::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
+  left: -1px;
+  border: 2px solid #fde247;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 处理占位符样式 */
+.room-cell.placeholder {
+  cursor: not-allowed;
+  color: #d9d9d9;
+  background: #fafafa;
+}
+
+.room-cell.placeholder.floor-row-selected {
+  background: #fafafa;
+}
+
+/* 移除之前的样式 */
+.floor-no.floor-selected,
+.room-cell.floor-row-selected {
+  border-color: #eee;
+  margin: 0;
+}
+
+/* 选中列的表头样式 */
+.room-cell-header.column-selected {
+  position: relative;
+  z-index: 1;
+  background: #fffcf0;
+}
+
+.room-cell-header.column-selected::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
+  left: -1px;
+  border: 2px solid #fde247;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 选中列中的房间样式 */
+.room-cell.column-selected {
+  position: relative;
+  z-index: 1;
+  background: #fffcf0;
+}
+
+.room-cell.column-selected::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
+  left: -1px;
+  border: 2px solid #fde247;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 处理占位符在选中列的样式 */
+.room-cell.placeholder.column-selected {
+  background: #fafafa;
+}
+
+/* 确保单个房间选中的优先级最高 */
+.room-cell.room-selected {
+  z-index: 3;
+}
+
+/* 确保行选中和列选中的优先级 */
+.room-cell.floor-row-selected {
+  z-index: 1;
+}
+
+.room-cell.column-selected {
+  z-index: 2;
 }
 </style>
