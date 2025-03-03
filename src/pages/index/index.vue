@@ -104,9 +104,7 @@
                       :key="room.id"
                       class="room-cell"
                       :class="{
-                        placeholder: room.isPlaceholder,
-                        'grid-col-span-2': room.isMerged, // 水平合并示例
-                        'grid-row-span-2': room.isVerticalMerged, // 垂直合并示例
+                        'grid-col-span-2': room.isMerged,
                         'room-selected': isRoomSelected(room),
                         'floor-row-selected': isInSelectedFloor(room),
                         'column-selected': isInSelectedColumn(room),
@@ -117,10 +115,12 @@
                       }"
                       @click="handleRoomClick(room)"
                     >
-                      <text class="room-no">{{ room.roomNo }}</text>
-                      <text v-if="!room.isPlaceholder" class="room-area"
-                        >{{ room.area }}㎡</text
-                      >
+                      <text class="room-no">{{
+                        getRoomDisplay(room).roomNo
+                      }}</text>
+                      <text v-if="!room.isPlaceholder" class="room-area">
+                        {{ getRoomDisplay(room).area }}㎡
+                      </text>
                     </view>
                   </template>
                 </view>
@@ -173,22 +173,29 @@ const getFloorRooms = (floor) => {
   const rooms = [];
   buildingConfig.units.forEach((unit) => {
     if (floor <= unit.totalFloors) {
-      // 有楼层，添加房间
       for (let i = 0; i < unit.roomCount; i++) {
-        // 从0开始计数
-        rooms.push({
-          id: `${floor}-${unit.unitNo}-${i + 1}`,
-          roomNo: generateRoomNo(floor, i + 1),
-          area: 98,
-          unitNo: unit.unitNo,
-          isMerged: false,
-          isElevated: false,
-        });
+        const roomId = `${floor}-${unit.unitNo}-${i + 1}`;
+        const mergeInfo = buildingConfig.mergedRooms[roomId];
+
+        // 检查是否是被合并的房间
+        const isMergedRoom = Object.values(buildingConfig.mergedRooms).some(
+          (info) => info.mergedWithId === roomId
+        );
+
+        if (!isMergedRoom) {
+          rooms.push({
+            id: roomId,
+            roomNo: generateRoomNo(floor, i + 1),
+            area: 98,
+            unitNo: unit.unitNo,
+            isMerged: !!mergeInfo,
+            mergeInfo,
+          });
+        }
       }
     } else {
-      // 没有楼层，添加占位符
+      // 占位符逻辑保持不变
       for (let i = 0; i < unit.roomCount; i++) {
-        // 从0开始计数
         rooms.push({
           id: `${floor}-${unit.unitNo}-${i + 1}`,
           roomNo: "/",
@@ -343,10 +350,31 @@ const totalRoomCount = computed(() => {
 // 获取房间在网格中的位置
 const getRoomGridPosition = (room) => {
   if (room.isMerged) {
-    // 如果是合并的房间，占据两列
-    return `span 2`;
+    return "span 2";
   }
   return "auto";
+};
+
+// 获取房间显示信息
+const getRoomDisplay = (room) => {
+  if (room.mergeInfo) {
+    const mergedRoomId = room.mergeInfo.mergedWithId;
+    const [mergedFloor, mergedUnit, mergedIndex] = mergedRoomId.split("-");
+    const mergedRoomNo = generateRoomNo(
+      parseInt(mergedFloor),
+      parseInt(mergedIndex)
+    );
+
+    return {
+      roomNo: `${room.roomNo}+${mergedRoomNo}`,
+      area: room.mergeInfo.totalArea,
+    };
+  }
+
+  return {
+    roomNo: room.roomNo,
+    area: room.area,
+  };
 };
 
 // 处理楼层点击
@@ -422,6 +450,10 @@ const mergeInfo = ref(null);
 
 // 修改获取编辑标题的方法
 const getEditTitle = () => {
+  if (selectedRoom.value?.mergeInfo) {
+    return "编辑合并房间";
+  }
+
   if (lastSelectedRoom.value && selectedRoom.value) {
     return "编辑相邻房间";
   }
@@ -434,6 +466,10 @@ const getEditTitle = () => {
 
 // 修改获取选择类型的方法
 const getSelectionType = () => {
+  if (selectedRoom.value?.mergeInfo) {
+    return "合并房间";
+  }
+
   if (lastSelectedRoom.value && selectedRoom.value) {
     return "相邻房间";
   }
@@ -446,6 +482,27 @@ const getSelectionType = () => {
 
 // 修改获取详细信息的方法
 const getSelectionDetails = () => {
+  // 如果是合并后的房间
+  if (selectedRoom.value?.mergeInfo) {
+    const mergeInfo = selectedRoom.value.mergeInfo;
+    const mergedRoomId = mergeInfo.mergedWithId;
+    const [mergedFloor, mergedUnit, mergedIndex] = mergedRoomId.split("-");
+    const mergedRoomNo = generateRoomNo(
+      parseInt(mergedFloor),
+      parseInt(mergedIndex)
+    );
+
+    return [
+      `合并房间号：${selectedRoom.value.roomNo}+${mergedRoomNo}`,
+      `总面积：${mergeInfo.totalArea}㎡`,
+      `所在单元：${selectedRoom.value.unitNo}单元`,
+      `所在楼层：${selectedRoom.value.roomNo.slice(0, -2)}层`,
+      `包含房间：`,
+      `  - ${selectedRoom.value.roomNo}（${selectedRoom.value.area}㎡）`,
+      `  - ${mergedRoomNo}（${selectedRoom.value.area}㎡）`,
+    ].join("\n");
+  }
+
   // 如果是两个相邻房间
   if (lastSelectedRoom.value && selectedRoom.value) {
     return (
@@ -482,42 +539,38 @@ const closeModal = () => {
   modalType.value = "edit"; // 重置为编辑模式
 };
 
-// 修改合并确认处理
+// 实现合并确认处理
 const handleMergeConfirm = () => {
-  if (!canMerge.value) return;
+  if (!lastSelectedRoom.value || !selectedRoom.value) return;
 
-  // 获取左右房间
-  const leftRoom =
-    parseInt(lastSelectedRoom.value.roomNo.slice(-2)) <
-    parseInt(selectedRoom.value.roomNo.slice(-2))
-      ? lastSelectedRoom.value
-      : selectedRoom.value;
+  // 确保房间顺序是从左到右
+  const [leftRoom, rightRoom] = [
+    lastSelectedRoom.value,
+    selectedRoom.value,
+  ].sort((a, b) => parseInt(a.roomNo.slice(-2)) - parseInt(b.roomNo.slice(-2)));
 
-  const rightRoom =
-    leftRoom === lastSelectedRoom.value
-      ? selectedRoom.value
-      : lastSelectedRoom.value;
-
-  // 设置合并信息
-  mergeInfo.value = {
-    before: {
-      left: {
-        roomNo: leftRoom.roomNo,
-        area: leftRoom.area,
-      },
-      right: {
-        roomNo: rightRoom.roomNo,
-        area: rightRoom.area,
-      },
-    },
-    after: {
-      roomNo: leftRoom.roomNo,
-      area: leftRoom.area + rightRoom.area,
-    },
+  // 创建合并信息
+  const mergeInfo = {
+    mainRoomId: leftRoom.id,
+    mergedWithId: rightRoom.id,
+    totalArea: leftRoom.area + rightRoom.area,
   };
 
-  // 显示弹窗
-  showEditModal.value = true;
+  // 更新合并状态
+  buildingConfig.mergedRooms[leftRoom.id] = mergeInfo;
+
+  // 清除选中状态
+  clearAllSelections();
+
+  // 设置合并后的主房间为选中状态
+  selectedRoom.value = {
+    ...leftRoom,
+    isMerged: true,
+    mergeInfo,
+  };
+
+  // 关闭弹窗
+  closeModal();
 };
 </script>
 
@@ -1036,5 +1089,15 @@ const handleMergeConfirm = () => {
 .merge-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 合并房间样式 */
+.room-cell.grid-col-span-2 {
+  width: 300rpx;
+}
+
+/* 合并房间的边框样式 */
+.room-cell.grid-col-span-2 {
+  border-right: 1px solid #eee;
 }
 </style>

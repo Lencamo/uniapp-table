@@ -18,6 +18,7 @@ export const generateBuildingData = (units: any[]) => {
       roomCount: unit.roomsPerElevator, // 每个单元的房间数就是每梯的户数
       rooms: Array.from({ length: unit.roomsPerElevator }, (_, i) => i + 1), // 生成房间号列表
     })),
+    mergedRooms: {}, // 存储合并房间的信息
   };
 };
 
