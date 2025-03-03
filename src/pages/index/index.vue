@@ -2,22 +2,42 @@
   <view class="building-table">
     <!-- 功能按钮区域 -->
     <view class="function-area">
-      <button
-        class="edit-btn"
-        :disabled="!canEdit"
-        :class="{ 'edit-btn-active': canEdit }"
-        @click="handleEdit"
-      >
-        编辑
-      </button>
-      <button
-        class="merge-btn"
-        :disabled="!canMerge"
-        :class="{ 'merge-btn-active': canMerge }"
-        @click="handleMergeClick"
-      >
-        合并
-      </button>
+      <view class="button-list">
+        <button
+          class="edit-btn"
+          :disabled="!canEdit"
+          :class="{ 'edit-btn-active': canEdit }"
+          @click="handleEdit"
+        >
+          编辑
+        </button>
+        <view class="merge-buttons">
+          <button
+            class="merge-btn"
+            :disabled="!canMerge"
+            :class="{ 'merge-btn-active': canMerge }"
+            @click="handleMergeClick"
+          >
+            合并
+          </button>
+          <button
+            class="unmerge-btn"
+            :disabled="!canUnmerge"
+            :class="{ 'unmerge-btn-active': canUnmerge }"
+            @click="handleUnmergeClick"
+          >
+            取消合并
+          </button>
+        </view>
+        <button
+          class="elevate-btn"
+          :disabled="!canElevate"
+          :class="{ 'elevate-btn-active': canElevate }"
+          @click="handleElevateClick"
+        >
+          跃层
+        </button>
+      </view>
     </view>
 
     <!-- 垂直滚动容器 -->
@@ -572,6 +592,36 @@ const handleMergeConfirm = () => {
   // 关闭弹窗
   closeModal();
 };
+
+// 添加取消合并按钮的状态控制
+const canUnmerge = computed(() => {
+  return selectedRoom.value?.mergeInfo;
+});
+
+// 处理取消合并按钮点击
+const handleUnmergeClick = () => {
+  if (!canUnmerge.value || !selectedRoom.value) return;
+
+  const mergeInfo = selectedRoom.value.mergeInfo;
+
+  // 从 mergedRooms 中删除合并信息
+  delete buildingConfig.mergedRooms[selectedRoom.value.id];
+
+  // 清除选中状态
+  clearAllSelections();
+};
+
+// 添加跃层按钮的状态控制
+const canElevate = computed(() => {
+  // 暂时禁用状态，后续根据需求添加启用条件
+  return false;
+});
+
+// 处理跃层按钮点击
+const handleElevateClick = () => {
+  if (!canElevate.value) return;
+  // 跃层逻辑待实现
+};
 </script>
 
 <style>
@@ -1025,10 +1075,6 @@ const handleMergeConfirm = () => {
   font-weight: bold;
 }
 
-.room-cell.column-selected .room-area {
-  color: #333333;
-}
-
 /* 确保占位符样式不变 */
 .room-cell.placeholder {
   color: #d9d9d9 !important;
@@ -1045,48 +1091,68 @@ const handleMergeConfirm = () => {
   border-bottom: 1px solid #eee;
 }
 
+/* 按钮列表样式 */
+.button-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+/* 合并按钮组样式 */
+.merge-buttons {
+  display: flex;
+  justify-content: flex-start;
+  gap: 20rpx;
+}
+
+/* 编辑按钮基础样式 */
+.edit-btn,
+.merge-btn,
+.unmerge-btn,
+.elevate-btn {
+  height: 60rpx;
+  line-height: 60rpx;
+  font-size: 28rpx;
+  color: #999;
+  background: #f5f5f5;
+  border: 1px solid #eee;
+  border-radius: 4rpx;
+}
+
+/* 单独设置每个按钮的宽度 */
 .edit-btn {
   width: 160rpx;
-  height: 60rpx;
-  line-height: 60rpx;
-  font-size: 28rpx;
-  color: #999;
-  background: #f5f5f5;
-  border: 1px solid #eee;
-  border-radius: 4rpx;
+  align-self: flex-start;
 }
 
-.edit-btn-active {
-  color: #333;
-  background: #fff;
-  border-color: #fde247;
-}
-
-.edit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 合并按钮样式 */
 .merge-btn {
   width: 160rpx;
-  height: 60rpx;
-  line-height: 60rpx;
-  font-size: 28rpx;
-  color: #999;
-  background: #f5f5f5;
-  border: 1px solid #eee;
-  border-radius: 4rpx;
-  margin-left: 20rpx;
 }
 
-.merge-btn-active {
+.unmerge-btn {
+  width: 200rpx;
+}
+
+.elevate-btn {
+  width: 160rpx;
+  align-self: flex-start;
+}
+
+/* 按钮激活状态 */
+.edit-btn-active,
+.merge-btn-active,
+.unmerge-btn-active,
+.elevate-btn-active {
   color: #333;
   background: #fff;
   border-color: #fde247;
 }
 
-.merge-btn:disabled {
+/* 按钮禁用状态 */
+.edit-btn:disabled,
+.merge-btn:disabled,
+.unmerge-btn:disabled,
+.elevate-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
