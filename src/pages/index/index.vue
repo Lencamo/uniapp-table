@@ -28,7 +28,7 @@
               <view class="header-content">
                 <!-- 楼栋号 -->
                 <view class="building-row">
-                  <text>{{ buildingConfig.buildingNo }}#</text>
+                  <text>{{ buildingConfig.buildingName }}</text>
                 </view>
                 <!-- 单元信息 -->
                 <view class="unit-row">
@@ -42,7 +42,10 @@
                   </view>
                 </view>
                 <!-- 房间号 -->
-                <view class="room-row">
+                <view
+                  class="room-row"
+                  :style="{ width: `${totalRoomCount * 150}rpx` }"
+                >
                   <template
                     v-for="unit in buildingConfig.units"
                     :key="unit.unitNo"
@@ -58,25 +61,39 @@
                 </view>
               </view>
 
-              <!-- 房间内容 -->
-              <view class="rooms-grid">
-                <view class="floor-row" v-for="floor in floors" :key="floor">
-                  <view
-                    v-for="room in getFloorRooms(floor)"
-                    :key="room.id"
-                    class="room-cell"
-                    :class="{
-                      merged: room.isMerged,
-                      elevated: room.isElevated,
-                      placeholder: room.isPlaceholder,
-                    }"
-                    @click="handleRoomClick(room)"
-                  >
-                    <text class="room-no">{{ room.roomNo }}</text>
-                    <text v-if="!room.isPlaceholder" class="room-area"
-                      >{{ room.area }}㎡</text
+              <!-- 房间内容区域改用Grid布局 -->
+              <view class="rooms-container">
+                <view
+                  class="rooms-grid"
+                  :style="{
+                    gridTemplateColumns: `repeat(${totalRoomCount}, 150rpx)`,
+                    gridTemplateRows: `repeat(${floors.length}, 150rpx)`,
+                  }"
+                >
+                  <!-- 使用Grid布局，每个房间占据一个格子 -->
+                  <template v-for="floor in floors" :key="floor">
+                    <view
+                      v-for="room in getFloorRooms(floor)"
+                      :key="room.id"
+                      class="room-cell"
+                      :class="{
+                        placeholder: room.isPlaceholder,
+                        'grid-col-span-2': room.isMerged, // 水平合并示例
+                        'grid-row-span-2': room.isVerticalMerged, // 垂直合并示例
+                        highlight: room.isHighlighted, // 高亮示例
+                      }"
+                      :style="{
+                        gridRow: `${buildingConfig.maxFloor - floor + 1}`,
+                        gridColumn: getRoomGridPosition(room),
+                      }"
+                      @click="handleRoomClick(room)"
                     >
-                  </view>
+                      <text class="room-no">{{ room.roomNo }}</text>
+                      <text v-if="!room.isPlaceholder" class="room-area"
+                        >{{ room.area }}㎡</text
+                      >
+                    </view>
+                  </template>
                 </view>
               </view>
             </view>
@@ -98,7 +115,7 @@ const generateBuildingData = (units) => {
   const maxFloor = Math.max(...units.map((u) => u.totalFloors));
 
   return {
-    buildingNo: "1",
+    buildingName: "某某测试楼栋",
     maxFloor,
     floorRange: {
       high: { start: Math.floor((maxFloor * 2) / 3) + 1, end: maxFloor },
@@ -131,7 +148,7 @@ const buildingConfig = reactive(generateBuildingData(mockUnits));
 const floors = computed(() => {
   return Array.from(
     { length: buildingConfig.maxFloor },
-    (_, i) => buildingConfig.maxFloor - i
+    (_, i) => buildingConfig.maxFloor - i // 从最高楼层开始递减
   );
 });
 
@@ -146,10 +163,11 @@ const getFloorRooms = (floor) => {
   buildingConfig.units.forEach((unit) => {
     if (floor <= unit.totalFloors) {
       // 有楼层，添加房间
-      for (let i = 1; i <= unit.roomCount; i++) {
+      for (let i = 0; i < unit.roomCount; i++) {
+        // 从0开始计数
         rooms.push({
-          id: `${floor}-${unit.unitNo}-${i}`,
-          roomNo: generateRoomNo(floor, i),
+          id: `${floor}-${unit.unitNo}-${i + 1}`,
+          roomNo: generateRoomNo(floor, i + 1),
           area: 98,
           unitNo: unit.unitNo,
           isMerged: false,
@@ -158,9 +176,10 @@ const getFloorRooms = (floor) => {
       }
     } else {
       // 没有楼层，添加占位符
-      for (let i = 1; i <= unit.roomCount; i++) {
+      for (let i = 0; i < unit.roomCount; i++) {
+        // 从0开始计数
         rooms.push({
-          id: `${floor}-${unit.unitNo}-${i}`,
+          id: `${floor}-${unit.unitNo}-${i + 1}`,
           roomNo: "/",
           isPlaceholder: true,
           unitNo: unit.unitNo,
@@ -192,6 +211,30 @@ const handleContentScroll = (e) => {
   if (headerScroll) {
     headerScroll.scrollLeft = e.detail.scrollLeft;
   }
+};
+
+// 计算总房间数
+const totalRoomCount = computed(() => {
+  return buildingConfig.units.reduce((sum, unit) => sum + unit.roomCount, 0);
+});
+
+// 获取房间在网格中的位置
+const getRoomGridPosition = (room) => {
+  let position = 1;
+  const unitIndex = room.unitNo - 1;
+  const roomIndex = room.isPlaceholder
+    ? parseInt(room.id.split("-")[2]) - 1
+    : parseInt(room.roomNo.slice(-2)) - 1;
+
+  // 计算当前单元之前的所有房间数
+  for (let i = 0; i < unitIndex; i++) {
+    position += buildingConfig.units[i].roomCount;
+  }
+
+  // 加上当前单元内的房间位置
+  position += roomIndex;
+
+  return position;
 };
 </script>
 
@@ -231,31 +274,45 @@ const handleContentScroll = (e) => {
   /* 移除 position: sticky 和 z-index */
 }
 
-/* 调整表头样式 */
+/* 表头区域样式调整 */
 .header-content {
   position: sticky;
   top: 0;
   z-index: 1;
   display: flex;
   flex-direction: column;
+  height: 180rpx;
+  box-sizing: border-box;
+  width: fit-content; /* 确保宽度适应内容 */
 }
 
-/* 统一表头高度，只给前两行设置灰色背景 */
-.building-row,
-.unit-row {
+/* 统一表头行高度 */
+.building-row {
   height: 60rpx;
-  min-height: 60rpx;
+  padding: 0 20rpx;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 1px solid #eee;
   box-sizing: border-box;
   background: #f5f5f5;
 }
 
-/* 房间号行使用白色背景 */
+.unit-row {
+  height: 60rpx;
+  display: flex;
+  border-bottom: 1px solid #eee;
+  box-sizing: border-box;
+  background: #f5f5f5;
+  width: fit-content; /* 确保宽度适应内容 */
+}
+
 .room-row {
   height: 60rpx;
-  min-height: 60rpx;
+  display: flex;
+  border-bottom: 1px solid #eee;
   box-sizing: border-box;
   background: #fff;
-  display: flex;
+  width: fit-content; /* 默认宽度适应内容 */
 }
 
 /* 左侧楼层列表头 */
@@ -318,65 +375,42 @@ const handleContentScroll = (e) => {
   box-sizing: border-box;
 }
 
-.building-row {
-  height: 60rpx;
-  padding: 0 20rpx;
-  font-weight: bold;
-  border-bottom: 1px solid #eee;
-}
-
-.unit-row {
-  height: 60rpx;
-  display: flex;
-  border-bottom: 1px solid #eee;
-}
-
 .unit-cell {
-  height: 100%;
+  height: 60rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: normal;
   border-right: 1px solid #eee;
-  border-bottom: 1px solid #eee;
   box-sizing: border-box;
-}
-
-.room-row {
-  height: 60rpx;
-  display: flex;
-  border-bottom: 1px solid #eee;
 }
 
 .room-cell-header {
   width: 150rpx;
-  height: 100%;
+  height: 60rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28rpx;
   border-right: 1px solid #eee;
-  border-bottom: 1px solid #eee;
   box-sizing: border-box;
+  flex-shrink: 0; /* 防止单元格被压缩 */
 }
 
 /* 房间内容部分 */
+.rooms-container {
+  width: 100%;
+  overflow: hidden;
+}
+
 .rooms-grid {
-  flex: 1;
+  display: grid;
+  width: fit-content;
+  gap: 0;
 }
 
-.floor-row {
-  display: flex;
-  height: 150rpx;
-  min-height: 150rpx;
-  box-sizing: border-box;
-}
-
-/* 房间单元格基础样式 */
+/* 房间单元格样式 */
 .room-cell {
   width: 150rpx;
   height: 150rpx;
-  min-height: 150rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -384,7 +418,7 @@ const handleContentScroll = (e) => {
   border-right: 1px solid #eee;
   border-bottom: 1px solid #eee;
   box-sizing: border-box;
-  background: #fff; /* 统一设置白色背景 */
+  background: #fff;
 }
 
 .room-no {
@@ -428,12 +462,6 @@ const handleContentScroll = (e) => {
   font-weight: normal;
 }
 
-/* 只保留楼栋号加粗 */
-.building-row {
-  font-weight: bold;
-  text-align: center;
-}
-
 /* 房间面积样式 */
 .room-area {
   font-size: 24rpx;
@@ -446,5 +474,19 @@ const handleContentScroll = (e) => {
 .room-cell-header:last-child,
 .room-cell:last-child {
   border-right: none;
+}
+
+/* 合并单元格样式 */
+.grid-col-span-2 {
+  grid-column: span 2;
+}
+
+.grid-row-span-2 {
+  grid-row: span 2;
+}
+
+/* 高亮样式 */
+.highlight {
+  background: #e6f7ff;
 }
 </style>
