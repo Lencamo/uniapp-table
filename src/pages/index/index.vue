@@ -255,6 +255,12 @@ const canMerge = computed(() => {
     return false
   }
 
+  // 如果任一房间是跃层房间，不允许合并
+  if (lastSelectedRoom.value.elevateInfo || selectedRoom.value.elevateInfo) {
+    console.log('跃层房间不能参与水平合并')
+    return false
+  }
+
   // 检查是否是同一行（同一楼层）
   const lastFloor = lastSelectedRoom.value.roomNo.slice(0, -2)
   const currentFloor = selectedRoom.value.roomNo.slice(0, -2)
@@ -315,6 +321,11 @@ const isRoomSelected = (room) => {
   const isCurrentSelected = selectedRoom.value?.id === room.id
   const isLastSelected = lastSelectedRoom.value?.id === room.id
 
+  // 如果是跃层房间，只高亮当前选中的房间
+  if (room.elevateInfo || (selectedRoom.value && selectedRoom.value.elevateInfo)) {
+    return isCurrentSelected
+  }
+
   // 只有在当前选中，或者是上一次选中且与当前选中的相邻时才高亮
   return (
     isCurrentSelected || (isLastSelected && isAdjacent(lastSelectedRoom.value, selectedRoom.value))
@@ -374,6 +385,14 @@ const getRoomGridPosition = (room) => {
 
 // 获取房间显示信息
 const getRoomDisplay = (room) => {
+  if (room.isPlaceholder) {
+    return {
+      roomNo: '/',
+      area: ''
+    }
+  }
+
+  // 如果是水平合并的房间
   if (room.mergeInfo) {
     const mergedRoomId = room.mergeInfo.mergedWithId
     const [mergedFloor, mergedUnit, mergedIndex] = mergedRoomId.split('-')
@@ -382,6 +401,18 @@ const getRoomDisplay = (room) => {
     return {
       roomNo: `${room.roomNo}+${mergedRoomNo}`,
       area: room.mergeInfo.totalArea
+    }
+  }
+
+  // 如果是跃层房间，使用与水平合并相同的显示逻辑
+  if (room.elevateInfo) {
+    const mergedRoomId = room.elevateInfo.mergedWithId
+    const [mergedFloor, mergedUnit, mergedIndex] = mergedRoomId.split('-')
+    const mergedRoomNo = generateRoomNo(parseInt(mergedFloor), parseInt(mergedIndex))
+
+    return {
+      roomNo: `${room.roomNo}+${mergedRoomNo}`,
+      area: room.elevateInfo.totalArea
     }
   }
 
@@ -396,6 +427,13 @@ const lastSelectedFloor = ref(null) // 上一次选中的楼层
 
 // 修改楼层点击处理
 const handleFloorClick = (floor) => {
+  // 检查当前点击的楼层是否已经参与跃层
+  const isClickedFloorElevated = Object.values(buildingConfig.elevatedRooms).some((info) => {
+    const [mainFloor] = info.mainRoomId.split('-').map(Number)
+    const [mergedFloor] = info.mergedWithId.split('-').map(Number)
+    return floor === mainFloor || floor === mergedFloor
+  })
+
   // 如果已经有选中的楼层
   if (selectedFloor.value) {
     // 如果点击的是同一个楼层，清除所有选择
@@ -405,7 +443,21 @@ const handleFloorClick = (floor) => {
       return
     }
 
-    // 更新上一次选中的楼层
+    // 如果当前选中的楼层是跃层楼层，或者点击的是跃层楼层
+    const isSelectedFloorElevated = Object.values(buildingConfig.elevatedRooms).some((info) => {
+      const [mainFloor] = info.mainRoomId.split('-').map(Number)
+      const [mergedFloor] = info.mergedWithId.split('-').map(Number)
+      return selectedFloor.value === mainFloor || selectedFloor.value === mergedFloor
+    })
+
+    if (isClickedFloorElevated || isSelectedFloorElevated) {
+      // 如果涉及跃层楼层，直接替换选中的楼层，不保留上一次选中
+      selectedFloor.value = floor
+      lastSelectedFloor.value = null
+      return
+    }
+
+    // 更新上一次选中的楼层（只有普通楼层才会执行到这里）
     lastSelectedFloor.value = selectedFloor.value
   }
 
@@ -441,6 +493,23 @@ const canElevate = computed(() => {
     (unit) => lastSelectedFloor.value <= unit.totalFloors && selectedFloor.value <= unit.totalFloors
   )
 
+  // 检查选中的楼层是否已经参与了跃层
+  const isAlreadyElevated = Object.values(buildingConfig.elevatedRooms).some((info) => {
+    const [mainFloor] = info.mainRoomId.split('-').map(Number)
+    const [mergedFloor] = info.mergedWithId.split('-').map(Number)
+    return (
+      lastSelectedFloor.value === mainFloor ||
+      lastSelectedFloor.value === mergedFloor ||
+      selectedFloor.value === mainFloor ||
+      selectedFloor.value === mergedFloor
+    )
+  })
+
+  // 如果任一楼层已经参与跃层，不允许再次跃层
+  if (isAlreadyElevated) {
+    return false
+  }
+
   return isAdjacent && isValidFloors
 })
 
@@ -466,6 +535,24 @@ const getSelectionType = () => {
 
 // 修改获取详细信息的方法
 const getSelectionDetails = () => {
+  // 如果是跃层房间
+  if (selectedRoom.value?.elevateInfo) {
+    const mainRoom = selectedRoom.value
+    const mergedRoomId = mainRoom.elevateInfo.mergedWithId
+    const [mergedFloor, mergedUnit, mergedIndex] = mergedRoomId.split('-')
+    const mergedRoomNo = generateRoomNo(parseInt(mergedFloor), parseInt(mergedIndex))
+
+    return [
+      `合并房间号：${mainRoom.roomNo}+${mergedRoomNo}`,
+      `总面积：${mainRoom.elevateInfo.totalArea}㎡`,
+      `所在单元：${mainRoom.unitNo}单元`,
+      `所在楼层：${mainRoom.roomNo.slice(0, -2)}层 - ${mergedFloor}层`,
+      `包含房间：`,
+      `  - ${mainRoom.roomNo}（${mainRoom.area}㎡）`,
+      `  - ${mergedRoomNo}（${mainRoom.area}㎡）`
+    ].join('\n')
+  }
+
   // 如果是合并后的房间
   if (selectedRoom.value?.mergeInfo) {
     const mergeInfo = selectedRoom.value.mergeInfo
@@ -593,10 +680,17 @@ const canUnmerge = computed(() => {
 const handleUnmergeClick = () => {
   if (!canUnmerge.value || !selectedRoom.value) return
 
-  const mergeInfo = selectedRoom.value.mergeInfo
+  // 如果是跃层房间，同时清除楼层关联
+  if (selectedRoom.value.elevateInfo) {
+    const [mainFloor] = selectedRoom.value.id.split('-').map(Number)
+    const [mergedFloor] = selectedRoom.value.elevateInfo.mergedWithId.split('-').map(Number)
+    delete mergedFloors[mainFloor]
+    delete mergedFloors[mergedFloor]
+  }
 
-  // 从 mergedRooms 中删除合并信息
+  // 删除合并信息
   delete buildingConfig.mergedRooms[selectedRoom.value.id]
+  delete buildingConfig.elevatedRooms[selectedRoom.value.id]
 
   // 清除选中状态
   clearAllSelections()
@@ -604,15 +698,36 @@ const handleUnmergeClick = () => {
 
 // 修改房间选中样式的判断
 const isInSelectedFloor = (room) => {
-  if (!selectedFloor.value && !lastSelectedFloor.value) return false
-
   if (room.isPlaceholder) {
     const floorFromId = parseInt(room.id.split('-')[0])
     return floorFromId === selectedFloor.value || floorFromId === lastSelectedFloor.value
   }
 
-  const floorFromRoomNo = parseInt(room.roomNo.slice(0, -2))
-  return floorFromRoomNo === selectedFloor.value || floorFromRoomNo === lastSelectedFloor.value
+  // 如果当前选中了楼层
+  if (selectedFloor.value || lastSelectedFloor.value) {
+    // 获取当前房间的楼层
+    const floorFromRoomNo = parseInt(room.roomNo.slice(0, -2))
+
+    // 如果是跃层房间，检查选中的楼层是否是跃层的一部分
+    if (room.elevateInfo) {
+      const [mainFloor] = room.id.split('-').map(Number)
+      const [mergedFloor] = room.elevateInfo.mergedWithId.split('-').map(Number)
+      // 如果选中的楼层是跃层的任一楼层，高亮整个跃层
+      if (
+        selectedFloor.value === mainFloor ||
+        selectedFloor.value === mergedFloor ||
+        lastSelectedFloor.value === mainFloor ||
+        lastSelectedFloor.value === mergedFloor
+      ) {
+        return true
+      }
+    }
+
+    // 对于普通房间，检查是否在选中的楼层
+    return floorFromRoomNo === selectedFloor.value || floorFromRoomNo === lastSelectedFloor.value
+  }
+
+  return false
 }
 
 // 处理列表头点击
@@ -689,6 +804,9 @@ const handleElevateClick = () => {
   showEditModal.value = true
 }
 
+// 添加跃层楼层关联的状态
+const mergedFloors = reactive({}) // 存储跃层相关的楼层信息
+
 // 修改 handleElevateConfirm 方法
 const handleElevateConfirm = () => {
   if (!lastSelectedFloor.value || !selectedFloor.value) return
@@ -715,11 +833,18 @@ const handleElevateConfirm = () => {
 
       // 更新合并状态
       buildingConfig.elevatedRooms[upperRoom.id] = elevateInfo
+
+      // 存储楼层关联信息
+      mergedFloors[upperFloor] = lowerFloor
+      mergedFloors[lowerFloor] = upperFloor
     }
   })
 
   // 清除选中状态
   clearAllSelections()
+
+  // 设置上层楼层为选中状态，以显示高亮效果
+  selectedFloor.value = upperFloor
 
   // 关闭弹窗
   closeModal()
@@ -734,10 +859,38 @@ const handleModalConfirm = () => {
   }
 }
 
-// 判断楼层是否被选中
+// 修改判断楼层是否被选中的方法
 const isFloorSelected = (floor) => {
-  if (!selectedFloor.value && !lastSelectedFloor.value) return false
-  return floor === selectedFloor.value || floor === lastSelectedFloor.value
+  // 如果当前有选中的楼层，优先处理楼层选择逻辑
+  if (selectedFloor.value || lastSelectedFloor.value) {
+    // 首先检查是否是已经完成跃层的楼层对
+    if (mergedFloors[floor]) {
+      // 如果当前楼层或其关联楼层被选中，两个楼层都高亮
+      return (
+        floor === selectedFloor.value ||
+        mergedFloors[floor] === selectedFloor.value ||
+        floor === lastSelectedFloor.value ||
+        mergedFloors[floor] === lastSelectedFloor.value
+      )
+    }
+
+    // 检查当前楼层是否是跃层楼层
+    const isCurrentFloorElevated = Object.values(buildingConfig.elevatedRooms).some((info) => {
+      const [mainFloor] = info.mainRoomId.split('-').map(Number)
+      const [mergedFloor] = info.mergedWithId.split('-').map(Number)
+      return floor === mainFloor || floor === mergedFloor
+    })
+
+    // 如果是跃层楼层，只在完全匹配时高亮
+    if (isCurrentFloorElevated) {
+      return floor === selectedFloor.value
+    }
+
+    // 普通楼层的高亮逻辑
+    return floor === selectedFloor.value || floor === lastSelectedFloor.value
+  }
+
+  return false
 }
 
 // 修改获取编辑标题的方法
