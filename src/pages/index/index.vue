@@ -29,14 +29,24 @@
             取消合并
           </button>
         </view>
-        <button
-          class="elevate-btn"
-          :disabled="!canElevate"
-          :class="{ 'elevate-btn-active': canElevate }"
-          @click="handleElevateClick"
-        >
-          跃层
-        </button>
+        <view class="merge-buttons">
+          <button
+            class="elevate-btn"
+            :disabled="!canElevate"
+            :class="{ 'elevate-btn-active': canElevate }"
+            @click="handleElevateClick"
+          >
+            跃层
+          </button>
+          <button
+            class="unmerge-btn"
+            :disabled="!canUnelevate"
+            :class="{ 'unmerge-btn-active': canUnelevate }"
+            @click="handleUnelevateClick"
+          >
+            取消跃层
+          </button>
+        </view>
       </view>
     </view>
 
@@ -914,6 +924,76 @@ const getRoomGridRow = (room, floor) => {
 
   return baseRow
 }
+
+// 判断是否可以取消跃层
+const canUnelevate = computed(() => {
+  // 检查是否选中了房间
+  if (selectedRoom.value) {
+    // 检查选中的房间是否是跃层房间
+    const isElevatedRoom = Object.values(buildingConfig.elevatedRooms).some((info) => {
+      const roomId = selectedRoom.value.id
+      return info.mainRoomId === roomId || info.mergedWithId === roomId
+    })
+    return isElevatedRoom
+  }
+
+  // 检查是否选中了楼层
+  if (selectedFloor.value) {
+    // 检查选中的楼层是否包含跃层房间
+    return Object.values(buildingConfig.elevatedRooms).some((info) => {
+      const [mainFloor] = info.mainRoomId.split('-').map(Number)
+      const [mergedFloor] = info.mergedWithId.split('-').map(Number)
+      // 如果选中的楼层是跃层的任一楼层，则可以取消跃层
+      return selectedFloor.value === mainFloor || selectedFloor.value === mergedFloor
+    })
+  }
+
+  return false
+})
+
+// 处理取消跃层点击事件
+const handleUnelevateClick = () => {
+  // 如果选中了房间
+  if (selectedRoom.value) {
+    // 找到相关的跃层信息
+    const elevatedInfo = Object.entries(buildingConfig.elevatedRooms).find(([roomId, info]) => {
+      return (
+        info.mainRoomId === selectedRoom.value.id || info.mergedWithId === selectedRoom.value.id
+      )
+    })
+
+    if (elevatedInfo) {
+      const [mainRoomId] = elevatedInfo
+      // 删除跃层信息
+      delete buildingConfig.elevatedRooms[mainRoomId]
+      // 获取相关的楼层
+      const [mainFloor] = elevatedInfo[1].mainRoomId.split('-').map(Number)
+      const [mergedFloor] = elevatedInfo[1].mergedWithId.split('-').map(Number)
+      // 清除楼层关联关系
+      delete mergedFloors[mainFloor]
+      delete mergedFloors[mergedFloor]
+    }
+  } else if (selectedFloor.value) {
+    // 如果选中了楼层，找到所有相关的跃层信息
+    Object.entries(buildingConfig.elevatedRooms).forEach(([mainRoomId, info]) => {
+      const [mainFloor] = info.mainRoomId.split('-').map(Number)
+      const [mergedFloor] = info.mergedWithId.split('-').map(Number)
+      // 如果选中的楼层是跃层的任一楼层，则删除该跃层信息
+      if (selectedFloor.value === mainFloor || selectedFloor.value === mergedFloor) {
+        delete buildingConfig.elevatedRooms[mainRoomId]
+        // 清除楼层关联关系
+        delete mergedFloors[mainFloor]
+        delete mergedFloors[mergedFloor]
+      }
+    })
+  }
+
+  // 清除选中状态
+  selectedRoom.value = null
+  lastSelectedRoom.value = null
+  selectedFloor.value = null
+  lastSelectedFloor.value = null
+}
 </script>
 
 <style>
@@ -1401,7 +1481,8 @@ const getRoomGridRow = (room, floor) => {
 .edit-btn,
 .merge-btn,
 .unmerge-btn,
-.elevate-btn {
+.elevate-btn,
+.unelevate-btn {
   height: 60rpx;
   line-height: 60rpx;
   font-size: 28rpx;
@@ -1434,7 +1515,8 @@ const getRoomGridRow = (room, floor) => {
 .edit-btn-active,
 .merge-btn-active,
 .unmerge-btn-active,
-.elevate-btn-active {
+.elevate-btn-active,
+.unelevate-btn-active {
   color: #333;
   background: #fff;
   border-color: #fde247;
@@ -1444,7 +1526,8 @@ const getRoomGridRow = (room, floor) => {
 .edit-btn:disabled,
 .merge-btn:disabled,
 .unmerge-btn:disabled,
-.elevate-btn:disabled {
+.elevate-btn:disabled,
+.unelevate-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
