@@ -1,5 +1,5 @@
 // 生成楼盘数据的方法
-export const generateBuildingData = (units: any[]) => {
+export const generateBuildingData = (units) => {
   const maxFloor = Math.max(...units.map((u) => u.totalFloors))
 
   return {
