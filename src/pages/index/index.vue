@@ -84,21 +84,14 @@
                   </view>
                 </view>
                 <!-- 房间号 -->
-                <view
-                  class="room-row"
-                  :style="{ width: `${totalRoomCount * 150}rpx` }"
-                >
-                  <template
-                    v-for="unit in buildingConfig.units"
-                    :key="unit.unitNo"
-                  >
+                <view class="room-row" :style="{ width: `${totalRoomCount * 150}rpx` }">
+                  <template v-for="unit in buildingConfig.units" :key="unit.unitNo">
                     <view
                       class="room-cell-header"
                       v-for="n in unit.roomCount"
                       :key="n"
                       :class="{
-                        'column-selected':
-                          selectedColumn === `${unit.unitNo}-${n}`,
+                        'column-selected': selectedColumn === `${unit.unitNo}-${n}`
                       }"
                       @click="handleColumnClick(unit.unitNo, n)"
                     >
@@ -114,7 +107,7 @@
                   class="rooms-grid"
                   :style="{
                     gridTemplateColumns: `repeat(${totalRoomCount}, 150rpx)`,
-                    gridTemplateRows: `repeat(${floors.length}, 150rpx)`,
+                    gridTemplateRows: `repeat(${floors.length}, 150rpx)`
                   }"
                 >
                   <!-- 使用Grid布局，每个房间占据一个格子 -->
@@ -128,17 +121,15 @@
                         'grid-row-span-2': room.elevateInfo,
                         'room-selected': isRoomSelected(room),
                         'floor-row-selected': isInSelectedFloor(room),
-                        'column-selected': isInSelectedColumn(room),
+                        'column-selected': isInSelectedColumn(room)
                       }"
                       :style="{
                         gridRow: getRoomGridRow(room, floor),
-                        gridColumn: getRoomGridPosition(room),
+                        gridColumn: getRoomGridPosition(room)
                       }"
                       @click="handleRoomClick(room)"
                     >
-                      <text class="room-no">{{
-                        getRoomDisplay(room).roomNo
-                      }}</text>
+                      <text class="room-no">{{ getRoomDisplay(room).roomNo }}</text>
                       <text v-if="!room.isPlaceholder" class="room-area">
                         {{ getRoomDisplay(room).area }}㎡
                       </text>
@@ -166,48 +157,48 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from "vue";
-import EditModal from "./EditModal.vue";
-import { generateBuildingData, mockUnits } from "./buildingData";
+import { ref, reactive, computed } from 'vue'
+import EditModal from './EditModal.vue'
+import { generateBuildingData, mockUnits } from './buildingData'
 
 // 单元格宽度
-const cellWidth = 120;
+const cellWidth = 120
 
 // 楼盘配置
-const buildingConfig = reactive(generateBuildingData(mockUnits));
+const buildingConfig = reactive(generateBuildingData(mockUnits))
 
 // 计算所有楼层（从高到低）
 const floors = computed(() => {
   return Array.from(
     { length: buildingConfig.maxFloor },
     (_, i) => buildingConfig.maxFloor - i // 从最高楼层开始递减
-  );
-});
+  )
+})
 
 // 生成房间号
 const generateRoomNo = (floor, roomNo) => {
-  return `${floor}${String(roomNo).padStart(2, "0")}`;
-};
+  return `${floor}${String(roomNo).padStart(2, '0')}`
+}
 
 // 获取指定楼层的所有房间
 const getFloorRooms = (floor) => {
-  const rooms = [];
+  const rooms = []
   buildingConfig.units.forEach((unit) => {
     if (floor <= unit.totalFloors) {
       for (let i = 0; i < unit.roomCount; i++) {
-        const roomId = `${floor}-${unit.unitNo}-${i + 1}`;
-        const mergeInfo = buildingConfig.mergedRooms[roomId];
-        const elevateInfo = buildingConfig.elevatedRooms[roomId];
+        const roomId = `${floor}-${unit.unitNo}-${i + 1}`
+        const mergeInfo = buildingConfig.mergedRooms[roomId]
+        const elevateInfo = buildingConfig.elevatedRooms[roomId]
 
         // 检查是否是被水平合并的房间
         const isMergedRoom = Object.values(buildingConfig.mergedRooms).some(
           (info) => info.mergedWithId === roomId
-        );
+        )
 
         // 检查是否是被跃层合并的房间
         const isElevatedRoom = Object.values(buildingConfig.elevatedRooms).some(
           (info) => info.mergedWithId === roomId
-        );
+        )
 
         if (!isMergedRoom && !isElevatedRoom) {
           rooms.push({
@@ -218,8 +209,8 @@ const getFloorRooms = (floor) => {
             isMerged: !!mergeInfo,
             mergeInfo,
             isElevated: !!elevateInfo,
-            elevateInfo,
-          });
+            elevateInfo
+          })
         }
       }
     } else {
@@ -227,187 +218,181 @@ const getFloorRooms = (floor) => {
       for (let i = 0; i < unit.roomCount; i++) {
         rooms.push({
           id: `${floor}-${unit.unitNo}-${i + 1}`,
-          roomNo: "/",
+          roomNo: '/',
           isPlaceholder: true,
-          unitNo: unit.unitNo,
-        });
+          unitNo: unit.unitNo
+        })
       }
     }
-  });
-  return rooms;
-};
+  })
+  return rooms
+}
 
 // 获取楼层所属区域类型
 const getFloorType = (floor) => {
-  const { high, middle, low } = buildingConfig.floorRange;
-  if (floor >= high.start && floor <= high.end) return "high";
-  if (floor >= middle.start && floor <= middle.end) return "middle";
-  if (floor >= low.start && floor <= low.end) return "low";
-  return "";
-};
+  const { high, middle, low } = buildingConfig.floorRange
+  if (floor >= high.start && floor <= high.end) return 'high'
+  if (floor >= middle.start && floor <= middle.end) return 'middle'
+  if (floor >= low.start && floor <= low.end) return 'low'
+  return ''
+}
 
 // 添加状态管理
-const selectedRoom = ref(null);
-const selectedFloor = ref(null);
-const selectedColumn = ref(null);
+const selectedRoom = ref(null)
+const selectedFloor = ref(null)
+const selectedColumn = ref(null)
 
 // 添加合并相关的状态
-const lastSelectedRoom = ref(null);
+const lastSelectedRoom = ref(null)
 const canMerge = computed(() => {
   if (!lastSelectedRoom.value || !selectedRoom.value) {
-    console.log("未选择两个房间");
-    return false;
+    console.log('未选择两个房间')
+    return false
   }
 
   if (lastSelectedRoom.value === selectedRoom.value) {
-    console.log("选择了同一个房间");
-    return false;
+    console.log('选择了同一个房间')
+    return false
   }
 
   // 检查是否是同一行（同一楼层）
-  const lastFloor = lastSelectedRoom.value.roomNo.slice(0, -2);
-  const currentFloor = selectedRoom.value.roomNo.slice(0, -2);
-  const isSameFloor = lastFloor === currentFloor;
+  const lastFloor = lastSelectedRoom.value.roomNo.slice(0, -2)
+  const currentFloor = selectedRoom.value.roomNo.slice(0, -2)
+  const isSameFloor = lastFloor === currentFloor
 
   // 检查是否相邻
-  const lastRoomIndex = parseInt(lastSelectedRoom.value.roomNo.slice(-2));
-  const currentRoomIndex = parseInt(selectedRoom.value.roomNo.slice(-2));
-  const isAdjacent = Math.abs(lastRoomIndex - currentRoomIndex) === 1;
+  const lastRoomIndex = parseInt(lastSelectedRoom.value.roomNo.slice(-2))
+  const currentRoomIndex = parseInt(selectedRoom.value.roomNo.slice(-2))
+  const isAdjacent = Math.abs(lastRoomIndex - currentRoomIndex) === 1
 
   // 检查是否在同一单元
-  const isSameUnit =
-    lastSelectedRoom.value.unitNo === selectedRoom.value.unitNo;
+  const isSameUnit = lastSelectedRoom.value.unitNo === selectedRoom.value.unitNo
 
   // 都不是占位符
-  const notPlaceholder =
-    !lastSelectedRoom.value.isPlaceholder && !selectedRoom.value.isPlaceholder;
+  const notPlaceholder = !lastSelectedRoom.value.isPlaceholder && !selectedRoom.value.isPlaceholder
 
-  const canMerge = isSameFloor && isAdjacent && isSameUnit && notPlaceholder;
-  console.log("最终结果:", {
+  const canMerge = isSameFloor && isAdjacent && isSameUnit && notPlaceholder
+  console.log('最终结果:', {
     canMerge,
     lastRoom: lastSelectedRoom.value.roomNo,
-    currentRoom: selectedRoom.value.roomNo,
-  });
+    currentRoom: selectedRoom.value.roomNo
+  })
 
-  return canMerge;
-});
+  return canMerge
+})
 
 // 清除所有选中状态
 const clearAllSelections = () => {
-  selectedRoom.value = null;
-  selectedFloor.value = null;
-  selectedColumn.value = null;
-  lastSelectedRoom.value = null;
-};
+  selectedRoom.value = null
+  selectedFloor.value = null
+  selectedColumn.value = null
+  lastSelectedRoom.value = null
+}
 
 // 判断两个房间是否相邻
 const isAdjacent = (room1, room2) => {
-  if (!room1 || !room2) return false;
+  if (!room1 || !room2) return false
 
   // 检查是否是同一行（同一楼层）
-  const isSameFloor = room1.roomNo.slice(0, -2) === room2.roomNo.slice(0, -2);
+  const isSameFloor = room1.roomNo.slice(0, -2) === room2.roomNo.slice(0, -2)
 
   // 检查是否相邻
-  const room1Index = parseInt(room1.roomNo.slice(-2));
-  const room2Index = parseInt(room2.roomNo.slice(-2));
-  const isNextTo = Math.abs(room1Index - room2Index) === 1;
+  const room1Index = parseInt(room1.roomNo.slice(-2))
+  const room2Index = parseInt(room2.roomNo.slice(-2))
+  const isNextTo = Math.abs(room1Index - room2Index) === 1
 
   // 检查是否在同一单元
-  const isSameUnit = room1.unitNo === room2.unitNo;
+  const isSameUnit = room1.unitNo === room2.unitNo
 
   // 都不是占位符
-  const notPlaceholder = !room1.isPlaceholder && !room2.isPlaceholder;
+  const notPlaceholder = !room1.isPlaceholder && !room2.isPlaceholder
 
-  return isSameFloor && isNextTo && isSameUnit && notPlaceholder;
-};
+  return isSameFloor && isNextTo && isSameUnit && notPlaceholder
+}
 
 // 修改 isRoomSelected 方法
 const isRoomSelected = (room) => {
-  const isCurrentSelected = selectedRoom.value?.id === room.id;
-  const isLastSelected = lastSelectedRoom.value?.id === room.id;
+  const isCurrentSelected = selectedRoom.value?.id === room.id
+  const isLastSelected = lastSelectedRoom.value?.id === room.id
 
   // 只有在当前选中，或者是上一次选中且与当前选中的相邻时才高亮
   return (
-    isCurrentSelected ||
-    (isLastSelected && isAdjacent(lastSelectedRoom.value, selectedRoom.value))
-  );
-};
+    isCurrentSelected || (isLastSelected && isAdjacent(lastSelectedRoom.value, selectedRoom.value))
+  )
+}
 
 // 修改房间点击处理逻辑
 const handleRoomClick = (room) => {
-  if (room.isPlaceholder) return;
+  if (room.isPlaceholder) return
 
   // 如果已经有选中的房间
   if (selectedRoom.value) {
     // 如果点击的是同一个房间，清除所有选择
     if (selectedRoom.value.id === room.id) {
-      selectedRoom.value = null;
-      lastSelectedRoom.value = null;
-      return;
+      selectedRoom.value = null
+      lastSelectedRoom.value = null
+      return
     }
 
     // 更新上一次选中的房间
-    lastSelectedRoom.value = selectedRoom.value;
+    lastSelectedRoom.value = selectedRoom.value
   }
 
   // 清除其他选择状态（楼层和列）
-  selectedFloor.value = null;
-  selectedColumn.value = null;
-  lastSelectedFloor.value = null;
-  selectedColumn.value = null;
+  selectedFloor.value = null
+  selectedColumn.value = null
+  lastSelectedFloor.value = null
+  selectedColumn.value = null
 
   // 设置当前选中房间
-  selectedRoom.value = room;
+  selectedRoom.value = room
 
   // 如果新选中的房间与上一个选中的房间不相邻，清除上一次选中
   if (!isAdjacent(lastSelectedRoom.value, room)) {
-    lastSelectedRoom.value = null;
+    lastSelectedRoom.value = null
   }
-};
+}
 
 // 处理内容区域滚动，同步表头滚动
 const handleContentScroll = (e) => {
-  const headerScroll = document.querySelector(".header-scroll");
+  const headerScroll = document.querySelector('.header-scroll')
   if (headerScroll) {
-    headerScroll.scrollLeft = e.detail.scrollLeft;
+    headerScroll.scrollLeft = e.detail.scrollLeft
   }
-};
+}
 
 // 计算总房间数
 const totalRoomCount = computed(() => {
-  return buildingConfig.units.reduce((sum, unit) => sum + unit.roomCount, 0);
-});
+  return buildingConfig.units.reduce((sum, unit) => sum + unit.roomCount, 0)
+})
 
 // 修改获取房间在网格中的位置的方法
 const getRoomGridPosition = (room) => {
-  if (!room.mergeInfo) return "auto";
-  return "span 2"; // 只处理水平合并
-};
+  if (!room.mergeInfo) return 'auto'
+  return 'span 2' // 只处理水平合并
+}
 
 // 获取房间显示信息
 const getRoomDisplay = (room) => {
   if (room.mergeInfo) {
-    const mergedRoomId = room.mergeInfo.mergedWithId;
-    const [mergedFloor, mergedUnit, mergedIndex] = mergedRoomId.split("-");
-    const mergedRoomNo = generateRoomNo(
-      parseInt(mergedFloor),
-      parseInt(mergedIndex)
-    );
+    const mergedRoomId = room.mergeInfo.mergedWithId
+    const [mergedFloor, mergedUnit, mergedIndex] = mergedRoomId.split('-')
+    const mergedRoomNo = generateRoomNo(parseInt(mergedFloor), parseInt(mergedIndex))
 
     return {
       roomNo: `${room.roomNo}+${mergedRoomNo}`,
-      area: room.mergeInfo.totalArea,
-    };
+      area: room.mergeInfo.totalArea
+    }
   }
 
   return {
     roomNo: room.roomNo,
-    area: room.area,
-  };
-};
+    area: room.area
+  }
+}
 
 // 添加跃层相关的状态
-const lastSelectedFloor = ref(null); // 上一次选中的楼层
+const lastSelectedFloor = ref(null) // 上一次选中的楼层
 
 // 修改楼层点击处理
 const handleFloorClick = (floor) => {
@@ -415,86 +400,78 @@ const handleFloorClick = (floor) => {
   if (selectedFloor.value) {
     // 如果点击的是同一个楼层，清除所有选择
     if (selectedFloor.value === floor) {
-      selectedFloor.value = null;
-      lastSelectedFloor.value = null;
-      return;
+      selectedFloor.value = null
+      lastSelectedFloor.value = null
+      return
     }
 
     // 更新上一次选中的楼层
-    lastSelectedFloor.value = selectedFloor.value;
+    lastSelectedFloor.value = selectedFloor.value
   }
 
   // 清除其他选择状态（房间和列）
-  selectedRoom.value = null;
-  selectedColumn.value = null;
-  lastSelectedRoom.value = null;
+  selectedRoom.value = null
+  selectedColumn.value = null
+  lastSelectedRoom.value = null
 
   // 设置当前选中楼层
-  selectedFloor.value = floor;
+  selectedFloor.value = floor
 
   // 如果新选中的楼层与上一个选中的楼层不相邻，清除上一次选中
   if (!isAdjacentFloors(lastSelectedFloor.value, floor)) {
-    lastSelectedFloor.value = null;
+    lastSelectedFloor.value = null
   }
-};
+}
 
 // 判断两个楼层是否相邻
 const isAdjacentFloors = (floor1, floor2) => {
-  if (!floor1 || !floor2) return false;
-  return Math.abs(floor1 - floor2) === 1;
-};
+  if (!floor1 || !floor2) return false
+  return Math.abs(floor1 - floor2) === 1
+}
 
 // 修改跃层按钮的状态控制
 const canElevate = computed(() => {
-  if (!lastSelectedFloor.value || !selectedFloor.value) return false;
+  if (!lastSelectedFloor.value || !selectedFloor.value) return false
 
   // 检查是否是相邻楼层
-  const isAdjacent = isAdjacentFloors(
-    lastSelectedFloor.value,
-    selectedFloor.value
-  );
+  const isAdjacent = isAdjacentFloors(lastSelectedFloor.value, selectedFloor.value)
 
   // 检查是否都在有效楼层范围内
   const isValidFloors = buildingConfig.units.some(
-    (unit) =>
-      lastSelectedFloor.value <= unit.totalFloors &&
-      selectedFloor.value <= unit.totalFloors
-  );
+    (unit) => lastSelectedFloor.value <= unit.totalFloors && selectedFloor.value <= unit.totalFloors
+  )
 
-  return isAdjacent && isValidFloors;
-});
+  return isAdjacent && isValidFloors
+})
 
 // 修改获取选择类型的方法
 const getSelectionType = () => {
   if (selectedRoom.value?.mergeInfo) {
-    return "合并房间";
+    return '合并房间'
   }
 
   if (lastSelectedRoom.value && selectedRoom.value) {
-    return "相邻房间";
+    return '相邻房间'
   }
 
   if (lastSelectedFloor.value && selectedFloor.value) {
-    return "相邻楼层";
+    return '相邻楼层'
   }
 
-  if (selectedRoom.value) return "单个房间";
-  if (selectedFloor.value) return "整行";
-  if (selectedColumn.value) return "整列";
-  return "";
-};
+  if (selectedRoom.value) return '单个房间'
+  if (selectedFloor.value) return '整行'
+  if (selectedColumn.value) return '整列'
+  return ''
+}
 
 // 修改获取详细信息的方法
 const getSelectionDetails = () => {
   // 如果是合并后的房间
   if (selectedRoom.value?.mergeInfo) {
-    const mergeInfo = selectedRoom.value.mergeInfo;
-    const mergedRoomId = mergeInfo.mergedWithId;
-    const [mergedFloor, mergedUnit, mergedIndex] = mergedRoomId.split("-");
-    const mergedRoomNo = generateRoomNo(
-      parseInt(mergedFloor),
-      parseInt(mergedIndex)
-    );
+    const mergeInfo = selectedRoom.value.mergeInfo
+    const mergedRoomId = mergeInfo.mergedWithId
+    const [mergedFloor, mergedUnit, mergedIndex] = mergedRoomId.split('-')
+    const mergedRoomNo = generateRoomNo(parseInt(mergedFloor), parseInt(mergedIndex))
 
     return [
       `合并房间号：${selectedRoom.value.roomNo}+${mergedRoomNo}`,
@@ -503,8 +480,8 @@ const getSelectionDetails = () => {
       `所在楼层：${selectedRoom.value.roomNo.slice(0, -2)}层`,
       `包含房间：`,
       `  - ${selectedRoom.value.roomNo}（${selectedRoom.value.area}㎡）`,
-      `  - ${mergedRoomNo}（${selectedRoom.value.area}㎡）`,
-    ].join("\n");
+      `  - ${mergedRoomNo}（${selectedRoom.value.area}㎡）`
+    ].join('\n')
   }
 
   // 如果是两个相邻房间
@@ -512,36 +489,29 @@ const getSelectionDetails = () => {
     return (
       `左侧房间：${lastSelectedRoom.value.roomNo} (${lastSelectedRoom.value.area}㎡)\n` +
       `右侧房间：${selectedRoom.value.roomNo} (${selectedRoom.value.area}㎡)`
-    );
+    )
   }
 
   // 修改相邻楼层的详情显示
   if (lastSelectedFloor.value && selectedFloor.value) {
-    const [lowerFloor, upperFloor] = [
-      lastSelectedFloor.value,
-      selectedFloor.value,
-    ].sort((a, b) => a - b);
+    const [lowerFloor, upperFloor] = [lastSelectedFloor.value, selectedFloor.value].sort(
+      (a, b) => a - b
+    )
 
     // 获取这两层的所有房间信息
-    const lowerFloorRooms = getFloorRooms(lowerFloor).filter(
-      (r) => !r.isPlaceholder
-    );
-    const upperFloorRooms = getFloorRooms(upperFloor).filter(
-      (r) => !r.isPlaceholder
-    );
+    const lowerFloorRooms = getFloorRooms(lowerFloor).filter((r) => !r.isPlaceholder)
+    const upperFloorRooms = getFloorRooms(upperFloor).filter((r) => !r.isPlaceholder)
 
     // 将房间信息按两列格式化
     const formatRooms = (rooms) => {
-      const result = [];
+      const result = []
       for (let i = 0; i < rooms.length; i += 2) {
-        const room1 = `${rooms[i].roomNo}（${rooms[i].area}㎡）`;
-        const room2 = rooms[i + 1]
-          ? `${rooms[i + 1].roomNo}（${rooms[i + 1].area}㎡）`
-          : "";
-        result.push(`  ${room1}${room2 ? `    ${room2}` : ""}`);
+        const room1 = `${rooms[i].roomNo}（${rooms[i].area}㎡）`
+        const room2 = rooms[i + 1] ? `${rooms[i + 1].roomNo}（${rooms[i + 1].area}㎡）` : ''
+        result.push(`  ${room1}${room2 ? `    ${room2}` : ''}`)
       }
-      return result;
-    };
+      return result
+    }
 
     return [
       `选中楼层：${lowerFloor}F - ${upperFloor}F`,
@@ -549,273 +519,257 @@ const getSelectionDetails = () => {
       ...formatRooms(lowerFloorRooms),
       `\n${upperFloor}F 房间：`,
       ...formatRooms(upperFloorRooms),
-      `\n可进行跃层操作`,
-    ].join("\n");
+      `\n可进行跃层操作`
+    ].join('\n')
   }
 
   // 原有的详情逻辑
   if (selectedRoom.value) {
-    return `房间号：${selectedRoom.value.roomNo}\n面积：${selectedRoom.value.area}㎡\n单元：${selectedRoom.value.unitNo}单元`;
+    return `房间号：${selectedRoom.value.roomNo}\n面积：${selectedRoom.value.area}㎡\n单元：${selectedRoom.value.unitNo}单元`
   }
   if (selectedFloor.value) {
-    return `楼层：${selectedFloor.value}F\n该层所有房间`;
+    return `楼层：${selectedFloor.value}F\n该层所有房间`
   }
   if (selectedColumn.value) {
-    const [unitNo, roomIndex] = selectedColumn.value.split("-");
-    return `单元：${unitNo}单元\n房间号：${roomIndex}室\n该列所有房间`;
+    const [unitNo, roomIndex] = selectedColumn.value.split('-')
+    return `单元：${unitNo}单元\n房间号：${roomIndex}室\n该列所有房间`
   }
-  return "";
-};
+  return ''
+}
 
 // 修改合并按钮点击处理
 const handleMergeClick = () => {
-  if (!canMerge.value) return;
+  if (!canMerge.value) return
 
-  modalType.value = "merge";
-  showEditModal.value = true;
-};
+  modalType.value = 'merge'
+  showEditModal.value = true
+}
 
 // 修改关闭弹窗处理
 const closeModal = () => {
-  showEditModal.value = false;
-  modalType.value = "edit"; // 重置为编辑模式
-};
+  showEditModal.value = false
+  modalType.value = 'edit' // 重置为编辑模式
+}
 
 // 实现合并确认处理
 const handleMergeConfirm = () => {
-  if (!lastSelectedRoom.value || !selectedRoom.value) return;
+  if (!lastSelectedRoom.value || !selectedRoom.value) return
 
   // 确保房间顺序是从左到右
-  const [leftRoom, rightRoom] = [
-    lastSelectedRoom.value,
-    selectedRoom.value,
-  ].sort((a, b) => parseInt(a.roomNo.slice(-2)) - parseInt(b.roomNo.slice(-2)));
+  const [leftRoom, rightRoom] = [lastSelectedRoom.value, selectedRoom.value].sort(
+    (a, b) => parseInt(a.roomNo.slice(-2)) - parseInt(b.roomNo.slice(-2))
+  )
 
   // 创建合并信息
   const mergeInfo = {
     mainRoomId: leftRoom.id,
     mergedWithId: rightRoom.id,
-    totalArea: leftRoom.area + rightRoom.area,
-  };
+    totalArea: leftRoom.area + rightRoom.area
+  }
 
   // 更新合并状态
-  buildingConfig.mergedRooms[leftRoom.id] = mergeInfo;
+  buildingConfig.mergedRooms[leftRoom.id] = mergeInfo
 
   // 清除选中状态
-  clearAllSelections();
+  clearAllSelections()
 
   // 设置合并后的主房间为选中状态
   selectedRoom.value = {
     ...leftRoom,
     isMerged: true,
-    mergeInfo,
-  };
+    mergeInfo
+  }
 
   // 关闭弹窗
-  closeModal();
-};
+  closeModal()
+}
 
 // 添加取消合并按钮的状态控制
 const canUnmerge = computed(() => {
-  return selectedRoom.value?.mergeInfo;
-});
+  return selectedRoom.value?.mergeInfo
+})
 
 // 处理取消合并按钮点击
 const handleUnmergeClick = () => {
-  if (!canUnmerge.value || !selectedRoom.value) return;
+  if (!canUnmerge.value || !selectedRoom.value) return
 
-  const mergeInfo = selectedRoom.value.mergeInfo;
+  const mergeInfo = selectedRoom.value.mergeInfo
 
   // 从 mergedRooms 中删除合并信息
-  delete buildingConfig.mergedRooms[selectedRoom.value.id];
+  delete buildingConfig.mergedRooms[selectedRoom.value.id]
 
   // 清除选中状态
-  clearAllSelections();
-};
+  clearAllSelections()
+}
 
 // 修改房间选中样式的判断
 const isInSelectedFloor = (room) => {
-  if (!selectedFloor.value && !lastSelectedFloor.value) return false;
+  if (!selectedFloor.value && !lastSelectedFloor.value) return false
 
   if (room.isPlaceholder) {
-    const floorFromId = parseInt(room.id.split("-")[0]);
-    return (
-      floorFromId === selectedFloor.value ||
-      floorFromId === lastSelectedFloor.value
-    );
+    const floorFromId = parseInt(room.id.split('-')[0])
+    return floorFromId === selectedFloor.value || floorFromId === lastSelectedFloor.value
   }
 
-  const floorFromRoomNo = parseInt(room.roomNo.slice(0, -2));
-  return (
-    floorFromRoomNo === selectedFloor.value ||
-    floorFromRoomNo === lastSelectedFloor.value
-  );
-};
+  const floorFromRoomNo = parseInt(room.roomNo.slice(0, -2))
+  return floorFromRoomNo === selectedFloor.value || floorFromRoomNo === lastSelectedFloor.value
+}
 
 // 处理列表头点击
 const handleColumnClick = (unitNo, roomIndex) => {
-  clearAllSelections(); // 清除之前的所有选中状态
-  selectedColumn.value = `${unitNo}-${roomIndex}`; // 设置新的选中状态
-};
+  clearAllSelections() // 清除之前的所有选中状态
+  selectedColumn.value = `${unitNo}-${roomIndex}` // 设置新的选中状态
+}
 
 // 修改判断房间是否在选中的列的方法
 const isInSelectedColumn = (room) => {
-  if (!selectedColumn.value) return false;
-  const [selectedUnitNo, selectedRoomIndex] = selectedColumn.value
-    .split("-")
-    .map(Number);
+  if (!selectedColumn.value) return false
+  const [selectedUnitNo, selectedRoomIndex] = selectedColumn.value.split('-').map(Number)
 
   // 如果是占位符
   if (room.isPlaceholder) {
-    const [_, unitNo, roomNo] = room.id.split("-").map(Number);
-    return unitNo === selectedUnitNo && roomNo === selectedRoomIndex;
+    const [_, unitNo, roomNo] = room.id.split('-').map(Number)
+    return unitNo === selectedUnitNo && roomNo === selectedRoomIndex
   }
 
   // 如果是合并的主房间，检查是否包含选中的列
   if (room.mergeInfo) {
     // 检查主房间是否在选中列
     const isMainRoomInColumn =
-      room.unitNo === selectedUnitNo &&
-      parseInt(room.roomNo.slice(-2)) === selectedRoomIndex;
+      room.unitNo === selectedUnitNo && parseInt(room.roomNo.slice(-2)) === selectedRoomIndex
 
     // 检查被合并的房间是否在选中列
-    const [_, mergedUnitNo, mergedRoomIndex] = room.mergeInfo.mergedWithId
-      .split("-")
-      .map(Number);
+    const [_, mergedUnitNo, mergedRoomIndex] = room.mergeInfo.mergedWithId.split('-').map(Number)
     const isMergedRoomInColumn =
-      mergedUnitNo === selectedUnitNo && mergedRoomIndex === selectedRoomIndex;
+      mergedUnitNo === selectedUnitNo && mergedRoomIndex === selectedRoomIndex
 
-    return isMainRoomInColumn || isMergedRoomInColumn;
+    return isMainRoomInColumn || isMergedRoomInColumn
   }
 
   // 对于普通房间，判断单元号和房间号是否匹配
-  return (
-    room.unitNo === selectedUnitNo &&
-    parseInt(room.roomNo.slice(-2)) === selectedRoomIndex
-  );
-};
+  return room.unitNo === selectedUnitNo && parseInt(room.roomNo.slice(-2)) === selectedRoomIndex
+}
 
 // 控制编辑按钮状态和弹窗显示
-const showEditModal = ref(false);
+const showEditModal = ref(false)
 
 // 修改 canEdit 计算属性
 const canEdit = computed(() => {
   // 如果有两个相邻房间被选中，也允许编辑
   if (lastSelectedRoom.value && selectedRoom.value) {
-    return true; // 允许编辑两个相邻房间
+    return true // 允许编辑两个相邻房间
   }
 
   // 原有的编辑条件
-  return selectedRoom.value || selectedFloor.value || selectedColumn.value;
-});
+  return selectedRoom.value || selectedFloor.value || selectedColumn.value
+})
 
 // 处理编辑按钮点击
 const handleEdit = () => {
-  if (!canEdit.value) return;
+  if (!canEdit.value) return
 
-  modalType.value = "edit";
-  showEditModal.value = true;
-};
+  modalType.value = 'edit'
+  showEditModal.value = true
+}
 
 // 修改 modalType 的逻辑，添加跃层类型
 const modalType = computed(() => {
   if (lastSelectedRoom.value && selectedRoom.value) {
-    return "merge";
+    return 'merge'
   }
   if (lastSelectedFloor.value && selectedFloor.value) {
-    return "elevate";
+    return 'elevate'
   }
-  return "";
-});
+  return ''
+})
 
 // 处理跃层按钮点击
 const handleElevateClick = () => {
-  if (!canElevate.value) return;
-  showEditModal.value = true;
-};
+  if (!canElevate.value) return
+  showEditModal.value = true
+}
 
 // 修改 handleElevateConfirm 方法
 const handleElevateConfirm = () => {
-  if (!lastSelectedFloor.value || !selectedFloor.value) return;
+  if (!lastSelectedFloor.value || !selectedFloor.value) return
 
   // 获取较低和较高的楼层
-  const [lowerFloor, upperFloor] = [
-    lastSelectedFloor.value,
-    selectedFloor.value,
-  ].sort((a, b) => a - b);
+  const [lowerFloor, upperFloor] = [lastSelectedFloor.value, selectedFloor.value].sort(
+    (a, b) => a - b
+  )
 
   // 获取两层的房间
-  const lowerRooms = getFloorRooms(lowerFloor).filter((r) => !r.isPlaceholder);
-  const upperRooms = getFloorRooms(upperFloor).filter((r) => !r.isPlaceholder);
+  const lowerRooms = getFloorRooms(lowerFloor).filter((r) => !r.isPlaceholder)
+  const upperRooms = getFloorRooms(upperFloor).filter((r) => !r.isPlaceholder)
 
   // 执行跃层合并
   upperRooms.forEach((upperRoom, index) => {
-    const lowerRoom = lowerRooms[index];
+    const lowerRoom = lowerRooms[index]
     if (lowerRoom) {
       // 创建跃层合并信息
       const elevateInfo = {
         mainRoomId: upperRoom.id,
         mergedWithId: lowerRoom.id,
-        totalArea: upperRoom.area + lowerRoom.area,
-      };
+        totalArea: upperRoom.area + lowerRoom.area
+      }
 
       // 更新合并状态
-      buildingConfig.elevatedRooms[upperRoom.id] = elevateInfo;
+      buildingConfig.elevatedRooms[upperRoom.id] = elevateInfo
     }
-  });
+  })
 
   // 清除选中状态
-  clearAllSelections();
+  clearAllSelections()
 
   // 关闭弹窗
-  closeModal();
-};
+  closeModal()
+}
 
 // 修改编辑弹窗的确认事件处理
 const handleModalConfirm = () => {
-  if (modalType.value === "merge") {
-    handleMergeConfirm();
-  } else if (modalType.value === "elevate") {
-    handleElevateConfirm();
+  if (modalType.value === 'merge') {
+    handleMergeConfirm()
+  } else if (modalType.value === 'elevate') {
+    handleElevateConfirm()
   }
-};
+}
 
 // 判断楼层是否被选中
 const isFloorSelected = (floor) => {
-  if (!selectedFloor.value && !lastSelectedFloor.value) return false;
-  return floor === selectedFloor.value || floor === lastSelectedFloor.value;
-};
+  if (!selectedFloor.value && !lastSelectedFloor.value) return false
+  return floor === selectedFloor.value || floor === lastSelectedFloor.value
+}
 
 // 修改获取编辑标题的方法
 const getEditTitle = () => {
   if (selectedRoom.value?.mergeInfo) {
-    return "编辑合并房间";
+    return '编辑合并房间'
   }
 
   if (lastSelectedRoom.value && selectedRoom.value) {
-    return "编辑相邻房间";
+    return '编辑相邻房间'
   }
 
   if (lastSelectedFloor.value && selectedFloor.value) {
-    return "编辑相邻楼层";
+    return '编辑相邻楼层'
   }
 
-  if (selectedRoom.value) return "编辑房间";
-  if (selectedFloor.value) return "编辑整行";
-  if (selectedColumn.value) return "编辑整列";
-  return "编辑";
-};
+  if (selectedRoom.value) return '编辑房间'
+  if (selectedFloor.value) return '编辑整行'
+  if (selectedColumn.value) return '编辑整列'
+  return '编辑'
+}
 
 // 修改 getRoomGridRow 方法处理垂直合并
 const getRoomGridRow = (room, floor) => {
-  const baseRow = buildingConfig.maxFloor - floor + 1;
+  const baseRow = buildingConfig.maxFloor - floor + 1
 
   if (room.elevateInfo) {
-    return `${baseRow} / span 2`;
+    return `${baseRow} / span 2`
   }
 
-  return baseRow;
-};
+  return baseRow
+}
 </script>
 
 <style>
@@ -921,7 +875,7 @@ const getRoomGridRow = (room, floor) => {
 
 /* 对角线 */
 .floor-no-header::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
@@ -1011,17 +965,17 @@ const getRoomGridRow = (room, floor) => {
 }
 
 /* 楼层区域标识优化 */
-.floor-row[data-floor-type="high"] .floor-no {
+.floor-row[data-floor-type='high'] .floor-no {
   background: #f6ffed;
   border-right: 1px solid #e6f7ff;
 }
 
-.floor-row[data-floor-type="middle"] .floor-no {
+.floor-row[data-floor-type='middle'] .floor-no {
   background: #fff7e6;
   border-right: 1px solid #ffe7ba;
 }
 
-.floor-row[data-floor-type="low"] .floor-no {
+.floor-row[data-floor-type='low'] .floor-no {
   background: #f5f5f5;
   border-right: 1px solid #eee;
 }
@@ -1078,7 +1032,7 @@ const getRoomGridRow = (room, floor) => {
 }
 
 .room-cell.room-selected::after {
-  content: "";
+  content: '';
   position: absolute;
   top: -1px;
   right: -1px;
@@ -1099,7 +1053,7 @@ const getRoomGridRow = (room, floor) => {
 
 .floor-no.floor-selected::before,
 .room-cell.floor-row-selected::before {
-  content: "";
+  content: '';
   position: absolute;
   top: -1px;
   right: -1px;
@@ -1136,7 +1090,7 @@ const getRoomGridRow = (room, floor) => {
 }
 
 .room-cell-header.column-selected::before {
-  content: "";
+  content: '';
   position: absolute;
   top: -1px;
   right: -1px;
@@ -1155,7 +1109,7 @@ const getRoomGridRow = (room, floor) => {
 }
 
 .room-cell.column-selected::before {
-  content: "";
+  content: '';
   position: absolute;
   top: -1px;
   right: -1px;
@@ -1370,7 +1324,7 @@ const getRoomGridRow = (room, floor) => {
 }
 
 .floor-no.floor-selected::before {
-  content: "";
+  content: '';
   position: absolute;
   top: -1px;
   right: -1px;

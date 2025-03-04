@@ -36,18 +36,18 @@ defineProps({
   title: String,
   selectionType: String,
   details: String,
-  showConfirm: Boolean, // 新增属性控制是否显示确认按钮
-});
+  showConfirm: Boolean // 新增属性控制是否显示确认按钮
+})
 
-const emit = defineEmits(["close", "confirm"]);
+const emit = defineEmits(['close', 'confirm'])
 
 const onClose = () => {
-  emit("close");
-};
+  emit('close')
+}
 
 const onConfirm = () => {
-  emit("confirm");
-};
+  emit('confirm')
+}
 </script>
 
 <style>
