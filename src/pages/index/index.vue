@@ -72,6 +72,7 @@
       :selection-type="getSelectionType()"
       :details="getSelectionDetails()"
       :show-confirm="!!modalType"
+      :current-room="selectedRoom"
       @close="closeModal"
       @confirm="handleModalConfirm"
     />
@@ -663,7 +664,7 @@ const handleEditConfirm = (data) => {
 
 /* 配置按钮样式 */
 .config-btn {
-  width: 160rpx;
+  width: 180rpx;
   border-color: #fde247;
   color: #333;
   align-self: flex-start;

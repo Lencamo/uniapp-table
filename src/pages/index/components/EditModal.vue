@@ -16,38 +16,22 @@
 
         <!-- 编辑区域 -->
         <block v-if="showConfirm">
-          <view class="form-item">
-            <text class="form-label">面积</text>
-            <input
-              class="form-input"
-              type="number"
-              v-model="formData.area"
-              placeholder="请输入面积"
-            />
+          <view class="unit-row">
+            <text class="unit-label">房号：</text>
+            <input class="unit-input" type="text" v-model="formData.roomNo" />
           </view>
 
-          <view class="form-item">
-            <text class="form-label">备注</text>
-            <textarea
-              class="form-textarea"
-              v-model="formData.remark"
-              placeholder="请输入备注信息"
-            />
+          <view class="unit-row">
+            <text class="unit-label">面积：</text>
+            <input class="unit-input" type="number" v-model="formData.area" />
+            <text class="unit-suffix">㎡</text>
           </view>
         </block>
       </scroll-view>
 
       <view class="modal-footer">
-        <button class="modal-btn" size="mini" @click="handleClose">取消</button>
-        <button
-          v-if="showConfirm"
-          class="modal-btn confirm-btn"
-          size="mini"
-          type="primary"
-          @click="handleConfirm"
-        >
-          确定
-        </button>
+        <button class="config-btn cancel-btn" @click="handleClose">取消</button>
+        <button class="config-btn confirm-btn" @click="handleConfirm">确定</button>
       </view>
     </view>
   </view>
@@ -76,25 +60,35 @@ const props = defineProps({
   showConfirm: {
     type: Boolean,
     default: true
+  },
+  currentRoom: {
+    type: Object,
+    default: () => ({})
   }
 })
 
 const emit = defineEmits(['update:show', 'close', 'confirm'])
 
 const formData = reactive({
-  area: '',
-  remark: ''
+  roomNo: props.currentRoom?.roomNo || '',
+  area: props.currentRoom?.area || ''
 })
 
-// 监听显示状态，重置表单
+// 监听显示状态和当前房间数据，更新表单
 watch(
-  () => props.show,
-  (newVal) => {
-    if (newVal) {
+  [() => props.show, () => props.currentRoom],
+  ([newShow, newRoom]) => {
+    if (newShow && newRoom) {
+      // 填充当前房间数据
+      formData.roomNo = newRoom.roomNo || ''
+      formData.area = newRoom.area || ''
+    } else if (!newShow) {
+      // 关闭时重置表单
+      formData.roomNo = ''
       formData.area = ''
-      formData.remark = ''
     }
-  }
+  },
+  { immediate: true }
 )
 
 const handleClose = () => {
@@ -103,8 +97,8 @@ const handleClose = () => {
 
 const handleConfirm = () => {
   emit('confirm', {
-    area: Number(formData.area),
-    remark: formData.remark
+    roomNo: formData.roomNo,
+    area: Number(formData.area) || 0
   })
 }
 </script>
@@ -133,15 +127,14 @@ const handleConfirm = () => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 80%;
-  max-width: 600rpx;
+  width: 560rpx;
   background: #fff;
   border-radius: 8rpx;
   overflow: hidden;
 }
 
 .modal-header {
-  padding: 20rpx;
+  padding: 20rpx 24rpx;
   border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
@@ -149,25 +142,25 @@ const handleConfirm = () => {
 }
 
 .modal-title {
-  font-size: 32rpx;
-  font-weight: bold;
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #333;
 }
 
 .modal-close {
-  font-size: 40rpx;
+  font-size: 36rpx;
   color: #999;
-  padding: 0 20rpx;
+  padding: 0 16rpx;
 }
 
 .modal-body {
   padding: 24rpx;
-  height: 100%;
-  box-sizing: border-box;
+  max-height: 800rpx;
 }
 
 .selection-info {
   margin-bottom: 20rpx;
-  padding: 20rpx;
+  padding: 16rpx;
   background: #f8f8f8;
   border-radius: 4rpx;
 }
@@ -176,58 +169,80 @@ const handleConfirm = () => {
   display: block;
   font-size: 28rpx;
   color: #333;
-  margin-bottom: 10rpx;
+  margin-bottom: 8rpx;
 }
 
 .selection-details {
   display: block;
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #666;
   white-space: pre-line;
 }
 
-.form-item {
-  margin-bottom: 20rpx;
+.unit-row {
+  display: flex;
+  align-items: center;
+  height: 64rpx;
+  margin-bottom: 16rpx;
 }
 
-.form-label {
-  display: block;
-  margin-bottom: 10rpx;
+.unit-label {
+  font-size: 28rpx;
+  color: #333;
+  width: 120rpx;
+}
+
+.unit-input {
+  width: 120rpx;
+  height: 60rpx;
+  border: 1px solid #ddd;
+  border-radius: 4rpx;
+  text-align: center;
+  font-size: 28rpx;
+  background: #fff;
+}
+
+.unit-suffix {
+  font-size: 26rpx;
   color: #666;
-}
-
-.form-input {
-  width: 100%;
-  height: 70rpx;
-  border: 1px solid #ddd;
-  border-radius: 4rpx;
-  padding: 0 20rpx;
-}
-
-.form-textarea {
-  width: 100%;
-  height: 160rpx;
-  border: 1px solid #ddd;
-  border-radius: 4rpx;
-  padding: 20rpx;
+  margin-left: 8rpx;
 }
 
 .modal-footer {
-  padding: 20rpx;
+  padding: 20rpx 24rpx;
   border-top: 1px solid #eee;
   display: flex;
   justify-content: flex-end;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
-.modal-btn {
-  min-width: 160rpx;
+/* 统一按钮样式 */
+.config-btn {
+  height: 60rpx;
+  line-height: 60rpx;
+  font-size: 28rpx;
+  padding: 0 30rpx;
+  border-radius: 4rpx;
+  background: #fff;
+  border: 1px solid #fde247;
+  color: #333;
   margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.config-btn:active {
+  opacity: 0.8;
+}
+
+.cancel-btn {
+  width: 140rpx;
+  border-color: #ddd;
+  color: #666;
 }
 
 .confirm-btn {
-  background: #fde247;
-  border-color: #fde247;
-  color: #333;
+  width: 140rpx;
 }
 </style>
