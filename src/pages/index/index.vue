@@ -3,6 +3,7 @@
     <!-- 功能按钮区域 -->
     <view class="function-area">
       <view class="button-list">
+        <button class="config-btn" @click="showUnitConfig">单元配置</button>
         <button
           class="edit-btn"
           :disabled="!canEdit"
@@ -74,6 +75,13 @@
       @close="closeModal"
       @confirm="handleModalConfirm"
     />
+
+    <!-- 单元配置弹窗 -->
+    <UnitConfigModal
+      v-model:show="showConfigModal"
+      :config="unitConfig"
+      @confirm="handleConfigConfirm"
+    />
   </div>
 </template>
 
@@ -81,10 +89,11 @@
 import { ref, reactive, computed } from 'vue'
 import EditModal from './components/EditModal.vue'
 import UniTable from './components/UniTable.vue'
-import { generateBuildingData, mockUnits } from './buildingData.js'
+import UnitConfigModal from './components/UnitConfigModal.vue'
+import { useBuildingStore } from './buildingStore'
 
-// 楼盘配置
-const buildingConfig = reactive(generateBuildingData(mockUnits))
+const { unitConfig, buildingConfig, mergedFloors, updateUnitConfig, getBuildingData } =
+  useBuildingStore()
 
 // 状态管理
 const selectedRoom = ref(null)
@@ -93,7 +102,10 @@ const selectedColumn = ref(null)
 const lastSelectedRoom = ref(null)
 const lastSelectedFloor = ref(null)
 const showEditModal = ref(false)
-const mergedFloors = reactive({})
+const showConfigModal = ref(false)
+
+// 弹窗类型
+const modalType = ref('')
 
 // 清除所有选中状态
 const clearAllSelections = () => {
@@ -325,30 +337,24 @@ const handleUnelevateClick = () => {
 }
 
 // 弹窗相关
-const modalType = computed(() => {
-  if (lastSelectedRoom.value && selectedRoom.value) {
-    return 'merge'
-  }
-  if (lastSelectedFloor.value && selectedFloor.value) {
-    return 'elevate'
-  }
-  return ''
-})
-
 const closeModal = () => {
   showEditModal.value = false
-  modalType.value = 'edit'
+  modalType.value = ''
 }
 
-const handleModalConfirm = () => {
+const handleModalConfirm = (data) => {
   if (modalType.value === 'merge') {
-    handleMergeConfirm()
+    handleMergeConfirm(data)
   } else if (modalType.value === 'elevate') {
-    handleElevateConfirm()
+    handleElevateConfirm(data)
+  } else {
+    // 处理普通编辑
+    handleEditConfirm(data)
   }
+  closeModal()
 }
 
-const handleMergeConfirm = () => {
+const handleMergeConfirm = (data) => {
   if (!lastSelectedRoom.value || !selectedRoom.value) return
 
   const [leftRoom, rightRoom] = [lastSelectedRoom.value, selectedRoom.value].sort(
@@ -370,11 +376,9 @@ const handleMergeConfirm = () => {
     isMerged: true,
     mergeInfo
   }
-
-  closeModal()
 }
 
-const handleElevateConfirm = () => {
+const handleElevateConfirm = (data) => {
   if (!lastSelectedFloor.value || !selectedFloor.value) return
 
   const [lowerFloor, upperFloor] = [lastSelectedFloor.value, selectedFloor.value].sort(
@@ -401,7 +405,6 @@ const handleElevateConfirm = () => {
 
   clearAllSelections()
   selectedFloor.value = upperFloor
-  closeModal()
 }
 
 // 获取弹窗信息
@@ -552,6 +555,65 @@ const getFloorRooms = (floor) => {
   })
   return rooms
 }
+
+// 显示配置弹窗
+const showUnitConfig = () => {
+  showConfigModal.value = true
+}
+
+// 处理配置确认
+const handleConfigConfirm = (newConfig) => {
+  updateUnitConfig(newConfig.units)
+  unitConfig.buildingName = newConfig.buildingName
+}
+
+// 添加保存数据的方法
+const saveToBackend = async () => {
+  try {
+    const data = getBuildingData()
+    // 这里添加上传到后端的逻辑
+    // const result = await uni.request({
+    //   url: 'your-api-endpoint',
+    //   method: 'POST',
+    //   data
+    // })
+    console.log('数据保存成功', data)
+  } catch (error) {
+    console.error('保存失败', error)
+  }
+}
+
+// 处理普通编辑确认
+const handleEditConfirm = (data) => {
+  if (selectedRoom.value) {
+    // 编辑单个房间
+    const room = selectedRoom.value
+    room.area = data.area
+    room.remark = data.remark
+  } else if (selectedFloor.value) {
+    // 编辑整层
+    const rooms = getFloorRooms(selectedFloor.value).filter((r) => !r.isPlaceholder)
+    rooms.forEach((room) => {
+      room.area = data.area
+      room.remark = data.remark
+    })
+  } else if (selectedColumn.value) {
+    // 编辑整列
+    const [unitNo, roomIndex] = selectedColumn.value.split('-').map(Number)
+    buildingConfig.units.forEach((unit) => {
+      if (unit.unitNo === unitNo) {
+        for (let floor = 1; floor <= unit.totalFloors; floor++) {
+          const roomId = `${floor}-${unitNo}-${roomIndex}`
+          const room = getFloorRooms(floor).find((r) => r.id === roomId)
+          if (room && !room.isPlaceholder) {
+            room.area = data.area
+            room.remark = data.remark
+          }
+        }
+      }
+    })
+  }
+}
 </script>
 
 <style>
@@ -583,58 +645,65 @@ const getFloorRooms = (floor) => {
   gap: 20rpx;
 }
 
-/* 编辑按钮基础样式 */
+/* 统一按钮基础样式 */
+.config-btn,
 .edit-btn,
 .merge-btn,
 .unmerge-btn,
-.elevate-btn,
-.unelevate-btn {
+.elevate-btn {
   height: 60rpx;
   line-height: 60rpx;
   font-size: 28rpx;
-  color: #999;
-  background: #f5f5f5;
-  border: 1px solid #eee;
+  padding: 0 30rpx;
   border-radius: 4rpx;
+  background: #fff;
+  border: 1px solid #eee;
+  color: #666;
 }
 
-/* 单独设置每个按钮的宽度 */
+/* 配置按钮样式 */
+.config-btn {
+  width: 160rpx;
+  border-color: #fde247;
+  color: #333;
+  align-self: flex-start;
+}
+
+/* 编辑按钮样式 */
 .edit-btn {
   width: 160rpx;
   align-self: flex-start;
 }
 
+/* 合并按钮样式 */
 .merge-btn {
   width: 160rpx;
 }
 
+/* 取消合并按钮样式 */
 .unmerge-btn {
   width: 200rpx;
 }
 
+/* 跃层按钮样式 */
 .elevate-btn {
   width: 160rpx;
-  align-self: flex-start;
 }
 
 /* 按钮激活状态 */
 .edit-btn-active,
 .merge-btn-active,
 .unmerge-btn-active,
-.elevate-btn-active,
-.unelevate-btn-active {
-  color: #333;
-  background: #fff;
+.elevate-btn-active {
   border-color: #fde247;
+  color: #333;
 }
 
 /* 按钮禁用状态 */
-.edit-btn:disabled,
-.merge-btn:disabled,
-.unmerge-btn:disabled,
-.elevate-btn:disabled,
-.unelevate-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+button[disabled] {
+  opacity: 0.5 !important;
+  background: #f5f5f5 !important;
+  border-color: #eee !important;
+  color: #999 !important;
 }
 </style>
